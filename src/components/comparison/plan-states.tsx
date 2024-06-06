@@ -13,10 +13,14 @@ export const PlanCardSkeleton: React.FC = () => (
       <Bar className="h-6 w-1/2" />
       <Bar className="h-9 w-full" />
     </CardHeader>
-    <CardContent className="space-y-4">
-      <Bar className="h-56 w-full" />
-      <Bar className="h-4 w-1/3" />
-      <Bar className="h-32 w-full" />
+    <CardContent className="@container/plan">
+      <div className="grid grid-cols-1 gap-6 @6xl/plan:grid-cols-2">
+        <Bar className="h-56 w-full" />
+        <div className="space-y-4">
+          <Bar className="h-4 w-1/3" />
+          <Bar className="h-32 w-full" />
+        </div>
+      </div>
     </CardContent>
   </Card>
 );
@@ -26,14 +30,14 @@ export const LoadingState: React.FC = () => (
     role="status"
     aria-busy="true"
     aria-label="Loading plans"
-    className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+    className="grid grid-cols-1 gap-6"
   >
     <PlanCardSkeleton />
     <PlanCardSkeleton />
   </div>
 );
 
-// One tier has no plan: keeps its column so the other card stays in place.
+// One tier has no plan: keeps its place so the other card stays put.
 export const EmptyPlanCard: React.FC<{ tier: PlanTier }> = ({ tier }) => (
   <Card className="h-full min-w-0 border-dashed">
     <CardContent className="flex h-full min-h-56 flex-col items-center justify-center gap-2 p-6 text-center">

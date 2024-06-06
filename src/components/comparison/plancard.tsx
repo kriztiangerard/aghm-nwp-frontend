@@ -113,7 +113,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
       <Separator />
 
-      <CardContent className="flex-1 pt-5 space-y-6">
+      <CardContent className="@container/plan flex-1 pt-5 space-y-6">
         {!planData.complete && (
           <div
             role="alert"
@@ -131,43 +131,58 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           </div>
         )}
 
-        {planData.complete && (
-          <TopologyGraph planData={planData} />
-        )}
-
-        <ComponentTable bom={planData.bom} currency={planData.currency} />
-
-        <div className="text-right space-y-0.5">
-          <span className="text-2xl font-extrabold text-primary">
-            {nothingPriced
-              ? PRICE_UNAVAILABLE
-              : formatCurrency(planData.totalCost, planData.currency)}
-          </span>
-          <span className="text-xs text-muted-foreground block">
-            {planData.totalIsPartial ? "Partial total" : "Estimated total"}
-          </span>
-          {planData.totalIsPartial && (
-            <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
-              {hasUnpriced
-                ? "Excludes items with unavailable prices"
-                : "Excludes the unmet requirements listed above"}
-            </span>
+        {/* Landscape on wide cards: topology on the left, hardware and cost on
+            the right. Narrow cards, and incomplete plans (no topology), use a
+            single column. */}
+        <div
+          className={cn(
+            "grid grid-cols-1 items-start gap-6",
+            planData.complete &&
+              "@6xl/plan:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
           )}
-        </div>
-
-        {/* NWP-COMPARE-002 */}
-        <Button
-          type="button"
-          className="w-full"
-          variant={isSelected ? "default" : "outline"}
-          disabled={!selectable}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
-          }}
         >
-          {isSelected ? "Selected" : "Select this plan"}
-        </Button>
+          {planData.complete && (
+            <div className="min-w-0">
+              <TopologyGraph planData={planData} />
+            </div>
+          )}
+
+          <div className="min-w-0 space-y-6">
+            <ComponentTable bom={planData.bom} currency={planData.currency} />
+
+            <div className="text-right space-y-0.5">
+              <span className="text-2xl font-extrabold text-primary">
+                {nothingPriced
+                  ? PRICE_UNAVAILABLE
+                  : formatCurrency(planData.totalCost, planData.currency)}
+              </span>
+              <span className="text-xs text-muted-foreground block">
+                {planData.totalIsPartial ? "Partial total" : "Estimated total"}
+              </span>
+              {planData.totalIsPartial && (
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
+                  {hasUnpriced
+                    ? "Excludes items with unavailable prices"
+                    : "Excludes the unmet requirements listed above"}
+                </span>
+              )}
+            </div>
+
+            {/* NWP-COMPARE-002 */}
+            <Button
+              type="button"
+              className="w-full"
+              variant={isSelected ? "default" : "outline"}
+              disabled={!selectable}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect();
+              }}
+            >
+              {isSelected ? "Selected" : "Select this plan"}
+            </Button>
+          </div>
+        </div>
       </CardContent>
 
       <CardFooter className="pt-2 pb-4 border-t bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">

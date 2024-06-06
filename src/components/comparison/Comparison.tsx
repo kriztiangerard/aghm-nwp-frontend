@@ -123,7 +123,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
           Vendor Plan Selection & Comparison
         </h1>
         <p className="text-sm text-muted-foreground">
-          Compare the Cost-Efficient and High-Performance plans side by side.
+          Compare the Cost-Efficient and High-Performance plans.
           Change the vendor on either card independently to see its hardware and costs.
         </p>
       </div>
@@ -136,7 +136,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
         <div
           role="radiogroup"
           aria-label="Network plans"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
+          className="grid grid-cols-1 gap-6"
         >
           {PLAN_TIERS.map((tier) => (
             <PlanPanel
