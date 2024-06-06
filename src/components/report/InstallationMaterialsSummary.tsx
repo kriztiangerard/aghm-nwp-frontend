@@ -1,4 +1,3 @@
-import { PLANNING_STAGE_DISCLAIMER } from "@/lib/disclaimers";
 import {
   Table,
   TableBody,
@@ -34,6 +33,8 @@ function displayValue(value: unknown): string {
   return "—";
 }
 
+// No disclaimers here: the "Planning estimate only" warning at the top of the
+// report (lib/disclaimers.ts) carries the site-survey note for material quantities.
 export default function InstallationMaterialsSummary({
   materials,
 }: InstallationMaterialsSummaryProps) {
@@ -41,13 +42,6 @@ export default function InstallationMaterialsSummary({
     materials && Array.isArray(materials.items)
       ? materials.items.filter(isRecord)
       : [];
-
-  const note =
-    materials &&
-    typeof materials.note === "string" &&
-    materials.note.trim()
-      ? materials.note
-      : null;
 
   return (
     <div className="space-y-4">
@@ -59,15 +53,6 @@ export default function InstallationMaterialsSummary({
 
       {materials && (
         <>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            {typeof materials.asOfDate === "string" && (
-              <span>Pricing date: {materials.asOfDate}</span>
-            )}
-            {typeof materials.pricingBasis === "string" && (
-              <span>Basis: {materials.pricingBasis}</span>
-            )}
-          </div>
-
           {items.length > 0 ? (
             <div className="overflow-x-auto rounded-lg border">
               <Table>
@@ -123,16 +108,6 @@ export default function InstallationMaterialsSummary({
           )}
         </>
       )}
-
-      {note && (
-        <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-          {note}
-        </p>
-      )}
-
-      <p className="rounded-lg border p-3 text-sm text-muted-foreground">
-        {PLANNING_STAGE_DISCLAIMER}
-      </p>
     </div>
   );
 }

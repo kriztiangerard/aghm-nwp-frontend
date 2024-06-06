@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
-import { ChevronRight } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getPlan } from "./get-plan";
 import { VendorSelect } from "./vendorselect";
 import { PlanCard } from "./plancard";
@@ -118,23 +118,9 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   const hasAnyPlan = PLAN_TIERS.some((t) => vendorsByTier[t].length > 0);
 
   return (
-    <section className="fade-in-content relative isolate w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
-      {/* CSS-only version of the splash page's sonar grid (see index.css). */}
-      <div aria-hidden="true" className="sonar-backdrop">
-        <span />
-      </div>
-
+    <section className="fade-in-content w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
       {onBackToSummary && (
-        <button
-          type="button"
-          onClick={onBackToSummary}
-          className="group flex w-fit cursor-pointer items-center gap-2 rounded-full pr-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex size-8 items-center justify-center rounded-full border bg-background transition-colors group-hover:bg-muted">
-            <ChevronRight className="size-4" aria-hidden="true" />
-          </span>
-          Back to summary
-        </button>
+        <BackButton label="Back to summary" onClick={onBackToSummary} />
       )}
 
       <div className="space-y-1.5">

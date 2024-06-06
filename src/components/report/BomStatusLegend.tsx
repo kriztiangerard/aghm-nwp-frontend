@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { Info, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function BomStatusLegend() {
@@ -75,12 +75,12 @@ export default function BomStatusLegend() {
                   }
                   className={
                     entry.label === "Stale" || entry.label === "Sunsetting"
-                      ? "gap-1 border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300"
-                      : ""
+                      ? "text-[10px] text-amber-700 dark:text-amber-400"
+                      : "text-[10px]"
                   }
                 >
                   {entry.label === "Sunsetting" && (
-                    <TriangleAlert className="size-3" aria-hidden="true" />
+                    <AlertTriangle aria-hidden="true" />
                   )}
                   {entry.label}
                 </Badge>

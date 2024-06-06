@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
@@ -8,6 +9,7 @@ import TopologyDiagram from "./TopologyDiagram";
 import InstallationMaterialsSummary from "./InstallationMaterialsSummary";
 import BomTable from "./BomTable";
 import BomStatusLegend from "./BomStatusLegend";
+import RequirementsPanel from "./RequirementsPanel";
 import {
   buildReport,
   type ReportBomLine,
@@ -53,7 +55,7 @@ function HardwareList({ lines }: { lines: ReportBomLine[] }) {
       {lines.map((line, index) => (
         <article
           key={`${line.sku}-${index}`}
-          className="rounded-lg border p-4"
+          className="rounded-lg border bg-card p-4"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h3 className="font-medium">{line.name}</h3>
@@ -264,7 +266,9 @@ const handleCsvDownload = () => {
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <BackButton label="Back to comparison" onClick={() => navigate(returnTo)} />
+
+      <header>
         <div>
           <p className="text-sm text-muted-foreground">Network Planning</p>
           <h1 className="text-3xl font-bold tracking-tight">Final Report</h1>
@@ -273,17 +277,9 @@ const handleCsvDownload = () => {
             requirements.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => navigate(returnTo)}
-          className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-        >
-          ← Back to comparison
-        </button>
       </header>
 
-      <section className="rounded-xl border p-5">
+      <section className="rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Selected vendor</p>
@@ -306,7 +302,7 @@ const handleCsvDownload = () => {
         <h1 className="text-2xl font-bold">Network Plan for {report.project.companyName}</h1>
           <DisclaimerAlert generatedAt={result.engineResult.generatedAt} />
         <h2 className="text-xl font-semibold">Project summary</h2>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border bg-muted/30 px-5 py-4 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border bg-card px-5 py-4 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
           {[
             ["Company / project", report.project.companyName],
             ["Locations", report.project.locations],
@@ -334,33 +330,18 @@ const handleCsvDownload = () => {
         </dl>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Network requirements</h2>
-        <dl className="border-t sm:columns-2 sm:gap-x-10 lg:columns-3">
-          {report.requirements.map((requirement, index) => (
-            <div
-              key={`${requirement.label}-${index}`}
-              className="grid break-inside-avoid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-4 border-b py-2 text-sm"
-            >
-              <dt className="text-muted-foreground">{requirement.label}</dt>
-              <dd className="break-words text-left font-medium">
-                {requirement.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">Network topology</h2>
+        <div className="rounded-xl border bg-card p-4">
+          <TopologyDiagram topology={report.topology} />
+        </div>
       </section>
+
+      <RequirementsPanel requirements={report.requirements} />
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Recommended hardware</h2>
         <HardwareList lines={report.hardware} />
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Network topology</h2>
-        <div className="rounded-xl border p-4">
-          <TopologyDiagram topology={report.topology} />
-        </div>
       </section>
 
       <section className="space-y-4">
@@ -375,7 +356,7 @@ const handleCsvDownload = () => {
         <h2 className="text-xl font-semibold">
           Installation Materials Summary
         </h2>
-        <div className="rounded-xl border p-4">
+        <div className="rounded-xl border bg-card p-4">
           <InstallationMaterialsSummary materials={report.installationMaterials} />
         </div>
       </section>
@@ -394,7 +375,7 @@ const handleCsvDownload = () => {
               {report.assumptions.map((item, index) => (
                 <div
                   key={`${item.field}-${index}`}
-                  className="rounded-lg border p-3 text-sm"
+                  className="rounded-lg border bg-card p-3 text-sm"
                 >
                   <p className="font-medium">{item.field}: {item.value}</p>
                   <p className="mt-1 text-muted-foreground">{item.reason}</p>
@@ -442,7 +423,7 @@ const handleCsvDownload = () => {
           <button
             type="button"
             onClick={handleCsvPreview}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            className="rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             Download BOM (CSV)
           </button>

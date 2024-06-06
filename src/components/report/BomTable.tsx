@@ -54,6 +54,24 @@ function formatCategory(category: string): string {
     .join(" ");
 }
 
+const WARN = "text-amber-700 dark:text-amber-400";
+
+function formatVerifiedDate(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value;
+
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return value;
+
+  return `${day} ${months[month - 1]} ${match[1]}`;
+}
+
 function isValidReferenceUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -65,7 +83,7 @@ function isValidReferenceUrl(value: string): boolean {
 
 export default function BomTable({ bom }: BomTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="overflow-x-auto rounded-lg border bg-card">
       <Table className="w-full min-w-[850px] table-fixed">
         <TableHeader>
           <TableRow>
@@ -108,61 +126,38 @@ export default function BomTable({ bom }: BomTableProps) {
                           ))}
                       </div>
                     )}
-                  {line.isGeneric && (
-                    <Badge variant="outline">Generic</Badge>
-                  )}
-                  {line.status === "SUNSETTING" && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="gap-1 border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300"
-                      >
-                        <AlertTriangle className="size-3" aria-hidden="true" />
-                        Sunsetting
+                  {/* Same badge styles and order as the comparison page. */}
+                  <div className="flex flex-wrap gap-1">
+                    {line.isGeneric && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Generic
                       </Badge>
-                    </div>
-                  )}
-                  {line.priceSource === "synchronized" && (
-                    <Badge variant="secondary">
-                      Synced
-                    </Badge>
-                  )}
-                  {line.priceSource === "manual" && (
-                    <Badge variant="secondary">
-                      Manual
-                    </Badge>
-                  )}
-                  {line.isStale && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                      >
+                    )}
+                    {line.status === "SUNSETTING" && (
+                      <Badge variant="outline" className={`text-[10px] ${WARN}`}>
+                        <AlertTriangle aria-hidden="true" />
+                        <span>Sunsetting</span>
+                      </Badge>
+                    )}
+                    {line.priceSource === "synchronized" && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Synced
+                      </Badge>
+                    )}
+                    {line.priceSource === "manual" && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Manual
+                      </Badge>
+                    )}
+                    {line.isStale && (
+                      <Badge variant="outline" className={`text-[10px] ${WARN}`}>
                         Stale
                       </Badge>
-                      {line.priceUpdatedAt && (
-                        <span className="text-[10px] text-muted-foreground">
-                          Last verified: {(() => {
-                            const match = line.priceUpdatedAt?.match(
-                              /^(\d{4})-(\d{2})-(\d{2})/,
-                            );
-                            if (!match) return line.priceUpdatedAt;
-
-                            const months = [
-                              "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-                            ];
-                            const month = Number(match[2]);
-                            const day = Number(match[3]);
-
-                            if (month < 1 || month > 12 || day < 1 || day > 31) {
-                              return line.priceUpdatedAt;
-                            }
-
-                            return `${day} ${months[month - 1]} ${match[1]}`;
-                          })()}
-                        </span>
-                      )}
+                    )}
+                  </div>
+                  {line.isStale && line.priceUpdatedAt && (
+                    <div className="text-[10px] text-muted-foreground">
+                      Last verified: {formatVerifiedDate(line.priceUpdatedAt)}
                     </div>
                   )}
                 </div>
