@@ -1,4 +1,4 @@
-import type { NetworkConfiguration } from '../../../backend/src/types/network-config'
+import type { NetworkConfiguration } from '../types/network-config'
 import type { QuestionnaireData } from '../schemas/questionnaireSchema'
 
 export function mapFormToNetworkConfiguration(

@@ -208,13 +208,11 @@ function Questionnaire() {
     setSubmitError(null)
 
     const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
-    const apiUrl = configuredApiUrl || 'http://localhost:8000'
+    const apiUrl = configuredApiUrl || (import.meta.env.DEV ? 'http://localhost:8000' : '')
 
-    if (!configuredApiUrl) {
-      console.warn(
-        '[Questionnaire] VITE_API_URL is not configured. Falling back to http://localhost:8000 for local development.',
-        { data },
-      )
+    if (!apiUrl) {
+      // show a clear error to the user instead of sending the request
+      throw new Error('VITE_API_URL is not configured for this build.')
     }
 
     const payload = mapFormToNetworkConfiguration(data)
