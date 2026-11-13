@@ -72,7 +72,7 @@ export function toFlowGraph(plan: TopologyPlan): FlowGraphResult {
 
       const bomLine =
         bomCategory && node.sku
-          ? plan.bom.lines.find(
+          ? plan.bom.find(
               (line) =>
                 line.category === bomCategory && line.sku === node.sku,
             )

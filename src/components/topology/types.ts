@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { Plan } from '@/types/api-types';
+
 
 /**
  * ENGINE-016 topology role vocabulary:
@@ -97,4 +97,11 @@ export type FlowGraphResult =
       warnings: TopologyWarning[];
     };
 
-export type TopologyPlan = Pick<Plan, 'bom' | 'topology'>;
+export interface TopologyPlan {
+  bom: {
+    sku: string;
+    name: string;
+    category: string;
+  }[];
+  topology?: TopologyPayload | null;
+}
