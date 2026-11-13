@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { DisclaimerAlert } from "@/components/report/DisclaimerAlert";
+import { DisclaimerAlert } from "../src/components/report/DisclaimerAlert";
 import {
   DISCLAIMER_TITLE,
   PLANNING_STAGE_DISCLAIMER,
   PRICING_DISCLAIMER,
   getDisclaimerBlock,
-} from "@/lib/disclaimers";
+} from "../src/lib/disclaimers";
 
 const GENERATED_AT = "2026-11-13T07:04:05.000Z";
 
