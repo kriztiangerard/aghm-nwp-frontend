@@ -1,5 +1,5 @@
-   // GENERATED FROM nwp-backend CONTRACT. DO NOT EDIT HERE.
-   // CONTRACT SOURCE: nwp-backend (backend/src/types/api-types.ts).
+// GENERATED FROM nwp-backend CONTRACT. DO NOT EDIT HERE.
+// CONTRACT SOURCE: nwp-backend (backend/src/types/api-types.ts).
 // Copied into nwp-frontend. DO NOT EDIT THE COPY. Mirrors contracts.js.
 // Update this file whenever contracts.js changes, and bump CONTRACT_VERSION in both.
 
