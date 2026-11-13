@@ -270,7 +270,7 @@ function Questionnaire() {
       // state), drop any previous selection, then go to the comparison page.
       // This was `console.log('Recommendation result:', responseBody)`.
       try {
-        setResult(adaptEngineResponse(responseBody))
+        setResult(adaptEngineResponse(responseBody, data))
       } catch (adaptError) {
         console.error('[Questionnaire] Unexpected response shape:', adaptError)
         setSubmitError('We received an unexpected response. Please try again.')
