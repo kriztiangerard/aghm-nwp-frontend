@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Bom } from "@/types/api-types";
+import type { Bom } from "../src/types/api-types";
 import { buildBomCsv } from "../src/lib/buildBomCsv";
 import {
   DISCLAIMER_TITLE,
