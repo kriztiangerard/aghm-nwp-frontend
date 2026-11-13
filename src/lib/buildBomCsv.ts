@@ -1,4 +1,4 @@
-import type { Bom } from "@/src/types/api-types";
+import type { Bom } from "@/types/api-types";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
 
 type Cell = string | number | null;
