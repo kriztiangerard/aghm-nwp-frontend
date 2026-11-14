@@ -185,6 +185,15 @@ function BomRow({
         ? "Manual"
         : "Not specified";
 
+  const validPriceReferences = (line.priceReferences ?? []).filter((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch {
+      return false;
+    }
+  });
+
   return (
     <View style={styles.tableRow} wrap={false}>
       <View style={{ width: "22%" }}>
@@ -208,9 +217,19 @@ function BomRow({
         )}
         {line.priceUpdatedAt && (
           <Text style={styles.tableCell}>
-            Last verified {line.priceUpdatedAt}
+            Last verified {new Date(line.priceUpdatedAt).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
           </Text>
         )}
+        {validPriceReferences.map((url, index) => (
+          <Link key={`${url}-${index}`} src={url} style={styles.link}>
+            {`Price reference ${index + 1}`}
+          </Link>
+        ))}
       </View>
       <Text style={[styles.tableCell, { width: "20%" }]}>
         {money(line.lineTotal, currency)}
