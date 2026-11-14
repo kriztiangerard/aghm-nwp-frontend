@@ -34,14 +34,14 @@ export const LAYOUT_CONFIG = {
 } as const;
 
 const NODE_DIMENSIONS = {
-  wan: { width: 180, height: 64 },
-  gateway: { width: 200, height: 88 },
-  firewall: { width: 180, height: 72 },
-  controller: { width: 190, height: 76 },
-  switch: { width: 200, height: 88 },
-  access_point: { width: 180, height: 76 },
-  client_group: { width: 190, height: 76 },
-  default: { width: 180, height: 72 },
+  wan: { width: 180, height: 80 },
+  gateway: { width: 200, height: 100 },
+  firewall: { width: 180, height: 90 },
+  controller: { width: 190, height: 90 },
+  switch: { width: 200, height: 100 },
+  access_point: { width: 180, height: 90 },
+  client_group: { width: 190, height: 90 },
+  default: { width: 180, height: 90 },
 } as const;
 
 const CACHE_LIMIT = 20;
