@@ -66,18 +66,18 @@ function isValidReferenceUrl(value: string): boolean {
 export default function BomTable({ bom }: BomTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <Table className="min-w-[1050px]">
+      <Table className="w-full min-w-[850px] table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead>Product name</TableHead>
-            <TableHead>SKU</TableHead>
-            <TableHead>Vendor</TableHead>
-            <TableHead className="text-right">Quantity</TableHead>
-            <TableHead className="text-right">
+            <TableHead className="w-[12%]">Category</TableHead>
+            <TableHead className="w-[25%]">Product name</TableHead>
+            <TableHead className="w-[10%]">SKU</TableHead>
+            <TableHead className="w-[16%]">Vendor</TableHead>
+            <TableHead className="w-[8%] text-center">Quantity</TableHead>
+            <TableHead className="w-[16%] text-right">
               Estimated unit price
             </TableHead>
-            <TableHead className="text-right">Line total</TableHead>
+            <TableHead className="w-[13%] text-right">Line total</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -138,9 +138,31 @@ export default function BomTable({ bom }: BomTableProps) {
                         variant="outline"
                         className="gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
                       >
-                        <AlertTriangle className="size-3" aria-hidden="true" />
                         Stale
                       </Badge>
+                      {line.priceUpdatedAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Last verified: {(() => {
+                            const match = line.priceUpdatedAt?.match(
+                              /^(\d{4})-(\d{2})-(\d{2})/,
+                            );
+                            if (!match) return line.priceUpdatedAt;
+
+                            const months = [
+                              "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                            ];
+                            const month = Number(match[2]);
+                            const day = Number(match[3]);
+
+                            if (month < 1 || month > 12 || day < 1 || day > 31) {
+                              return line.priceUpdatedAt;
+                            }
+
+                            return `${day} ${months[month - 1]} ${match[1]}`;
+                          })()}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -149,7 +171,7 @@ export default function BomTable({ bom }: BomTableProps) {
               <TableCell className="whitespace-nowrap">
                 {line.isGeneric ? "Not specified" : line.vendor}
               </TableCell>
-              <TableCell className="whitespace-nowrap text-right">{line.qty}</TableCell>
+              <TableCell className="whitespace-nowrap text-center">{line.qty}</TableCell>
               <TableCell className="whitespace-nowrap text-right">
                 {formatMoney(line.unitPrice, bom.currency)}
               </TableCell>
@@ -175,17 +197,11 @@ export default function BomTable({ bom }: BomTableProps) {
 
         <TableFooter>
           <TableRow>
-            <TableCell colSpan={6} className="text-right font-semibold">
+            <TableCell colSpan={6} className="font-semibold">
               {bom.totalIsPartial ||
               bom.lines.some((line) => line.unitPrice === null)
-                ? "Partial total"
+                ? "Equipment subtotal (known prices)"
                 : "Estimated total"}
-              {(bom.totalIsPartial ||
-                bom.lines.some((line) => line.unitPrice === null)) && (
-                <p className="text-xs font-normal text-muted-foreground">
-                  Excludes items with unavailable prices. Final equipment cost may be higher.
-                </p>
-              )}
             </TableCell>
             <TableCell className="whitespace-nowrap text-right font-semibold">
               {formatMoney(bom.total, bom.currency)}
@@ -193,6 +209,16 @@ export default function BomTable({ bom }: BomTableProps) {
           </TableRow>
         </TableFooter>
       </Table>
+
+      {(bom.totalIsPartial ||
+        bom.lines.some((line) => line.unitPrice === null)) && (
+        <div className="border-t bg-muted/40 px-4 py-3">
+          <p className="text-sm font-semibold">Partial total</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This estimate may be incomplete due to unavailable equipment prices or unmet network requirements. Final equipment cost may be higher.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

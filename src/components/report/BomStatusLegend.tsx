@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Info, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,7 +36,7 @@ export default function BomStatusLegend() {
     { label: "Manual", description: "Price entered manually" },
     { label: "Generic", description: "Generic component" },
     { label: "Stale", description: "Price may be out of date" },
-    { label: "Sunsetting", description: "Device approaching end-of-life" },
+    { label: "Sunsetting", description: "Device approaching end-of-life. Confirm availability before purchase." },
   ];
 
   return (
@@ -60,16 +60,13 @@ export default function BomStatusLegend() {
       {open && (
         <div
           id="bom-status-legend"
-          className="absolute left-0 top-full z-50 mt-2 w-[min(90vw,390px)] rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg"
+          className="absolute left-0 top-full z-50 mt-2 w-[min(90vw,370px)] rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg"
         >
           <h3 className="mb-4 text-base font-semibold">Legend</h3>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-2">
             {entries.map((entry) => (
-              <div
-                key={entry.label}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1"
-              >
+              <Fragment key={entry.label}>
                 <Badge
                   variant={
                     entry.label === "Synced" || entry.label === "Manual"
@@ -88,10 +85,12 @@ export default function BomStatusLegend() {
                   {entry.label}
                 </Badge>
 
-                <span className="text-xs text-muted-foreground">
-                  {entry.description}
+                <span className="text-[10px] leading-relaxed text-muted-foreground">
+                  {entry.label === "Sunsetting"
+                    ? "Device approaching end-of-life. Check availability before buying."
+                    : entry.description}
                 </span>
-              </div>
+              </Fragment>
             ))}
           </div>
         </div>

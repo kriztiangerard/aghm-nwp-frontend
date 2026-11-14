@@ -81,7 +81,7 @@ describe("NWP-REPORT-003: BomTable", () => {
     render(<BomTable bom={staleBom} />);
 
     expect(screen.getByText("Stale")).toBeTruthy();
-    expect(screen.queryByText(/Last verified:/)).toBeNull();
+    expect(screen.getByText("Last verified: 10 Nov 2026")).toBeTruthy();
   });
 
   it("AC 4: does not show stale price information for current prices", () => {
@@ -232,7 +232,7 @@ describe("NWP-REPORT-003: BomTable", () => {
 
     expect(screen.getByText("Partial total")).toBeTruthy();
     expect(
-      screen.getByText("Excludes items with unavailable prices. Final equipment cost may be higher.")
+      screen.getByText("This estimate may be incomplete due to unavailable equipment prices or unmet network requirements. Final equipment cost may be higher.")
     ).toBeTruthy();
 
     expect(screen.queryByText("Estimated total")).toBeNull();

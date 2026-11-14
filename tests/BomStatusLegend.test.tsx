@@ -12,7 +12,7 @@ describe("NWP-REPORT-003: BOM status legend", () => {
       name: "BOM status legend",
     });
 
-    expect(screen.queryByText("Device approaching end-of-life")).toBeNull();
+    expect(screen.queryByText("Device approaching end-of-life. Check availability before buying.")).toBeNull();
 
     fireEvent.mouseEnter(infoButton.parentElement!);
 
@@ -21,11 +21,11 @@ describe("NWP-REPORT-003: BOM status legend", () => {
     expect(screen.getByText("Price entered manually")).toBeTruthy();
     expect(screen.getByText("Generic component")).toBeTruthy();
     expect(screen.getByText("Price may be out of date")).toBeTruthy();
-    expect(screen.getByText("Device approaching end-of-life")).toBeTruthy();
+    expect(screen.getByText("Device approaching end-of-life. Check availability before buying.")).toBeTruthy();
 
     fireEvent.mouseLeave(infoButton.parentElement!);
 
-    expect(screen.queryByText("Device approaching end-of-life")).toBeNull();
+    expect(screen.queryByText("Device approaching end-of-life. Check availability before buying.")).toBeNull();
   });
 
   it("opens the legend when the info icon is clicked", () => {
@@ -37,7 +37,7 @@ describe("NWP-REPORT-003: BOM status legend", () => {
 
     fireEvent.click(infoButton);
 
-    expect(screen.getByText("Device approaching end-of-life")).toBeTruthy();
+    expect(screen.getByText("Device approaching end-of-life. Check availability before buying.")).toBeTruthy();
     expect(infoButton.getAttribute("aria-expanded")).toBe("true");
   });
 });
