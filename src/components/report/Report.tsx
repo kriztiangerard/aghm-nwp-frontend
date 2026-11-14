@@ -297,6 +297,8 @@ const handleCsvDownload = () => {
       </section>
 
       <section className="space-y-3">
+        <h1 className="text-2xl font-bold">Network Plan for {report.project.companyName}</h1>
+          <DisclaimerAlert generatedAt={result.engineResult.generatedAt} />
         <h2 className="text-xl font-semibold">Project summary</h2>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border bg-muted/30 px-5 py-4 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
           {[
@@ -477,7 +479,6 @@ const handleCsvDownload = () => {
       )}
 
       <section className="space-y-4">
-        <DisclaimerAlert generatedAt={result.engineResult.generatedAt} />
         <div className="flex flex-wrap gap-3 print:hidden">
           <button
             type="button"
