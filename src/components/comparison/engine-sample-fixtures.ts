@@ -139,8 +139,75 @@ const engineSampleMixed: EngineResult = {
 };
 
 // Spread into `scenarios` in fixtures.ts:  { ...existing, ...engineScenarios }
+const engineSamplePlacements: EngineResult = {
+  ...engineSample,
+  plans: engineSample.plans.map((plan) => ({
+    ...plan,
+    topology: plan.topology
+      ? {
+          ...plan.topology,
+          nodes: plan.topology.nodes.map((node) => {
+            const total =
+              node.role === "access_point"
+                ? node.qty
+                : node.role === "client_group"
+                  ? node.count
+                  : undefined;
+
+            if (
+              (node.role === "access_point" ||
+                node.role === "client_group") &&
+              typeof total === "number" &&
+              total > 0
+            ) {
+              const first = Math.ceil(total / 2);
+              const second = total - first;
+
+              return {
+                ...node,
+                placements: [
+                  {
+                    floorId: "floor-1",
+                    floorLabel: "Floor 1",
+                    closetId: "closet-1",
+                    closetLabel: "Floor 1 Main Network Closet",
+                    qty: first,
+                  },
+                  {
+                    floorId: "floor-2",
+                    floorLabel: "Floor 2",
+                    closetId: "closet-2",
+                    closetLabel: "Floor 2 Main Network Closet",
+                    qty: second,
+                  },
+                ],
+              };
+            }
+
+            if (node.layer === "core") {
+              return {
+                ...node,
+                placements: [
+                  {
+                    floorId: "floor-1",
+                    floorLabel: "Floor 1",
+                    closetId: "closet-1",
+                    closetLabel: "Floor 1 Main Network Closet",
+                    qty: node.qty ?? 1,
+                  },
+                ],
+              };
+            }
+
+            return node;
+          }),
+        }
+      : plan.topology,
+  })),
+};
 export const engineScenarios: Record<string, VendorPlansPayload> = {
   engineSample: adaptEngineResult(engineSample).plansData,
+  engineSamplePlacements: adaptEngineResult(engineSamplePlacements).plansData,
   engineSampleComplete: adaptEngineResult(engineSampleComplete).plansData,
   engineSampleMixed: adaptEngineResult(engineSampleMixed).plansData,
 };

@@ -29,6 +29,14 @@ export type TopologyMedium =
   | 'wireless';
 
 /** Mirrors the node structure produced by ENGINE-016. */
+export interface TopologyPlacement {
+  floorId: string;
+  floorLabel: string;
+  closetId: string;
+  closetLabel: string;
+  qty: number;
+}
+
 export interface TopologyNode {
   id: string;
   role: string;
@@ -41,6 +49,7 @@ export interface TopologyNode {
   integratedWith?: string;
   count?: number | null;
   clientKind?: string;
+  placements?: TopologyPlacement[];
 }
 
 /** Mirrors the edge structure produced by ENGINE-016. */
@@ -75,6 +84,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   integratedWith?: string;
   count?: number | null;
   clientKind?: string;
+  placements?: TopologyPlacement[];
 }
 
 /**

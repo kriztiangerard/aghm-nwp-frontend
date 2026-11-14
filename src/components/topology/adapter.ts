@@ -106,6 +106,13 @@ export function toFlowGraph(plan: TopologyPlan): FlowGraphResult {
           ...(node.clientKind !== undefined
             ? { clientKind: node.clientKind }
             : {}),
+          ...(node.placements !== undefined
+            ? {
+                placements: node.placements.map((placement) => ({
+                  ...placement,
+                })),
+              }
+            : {}),
         },
       };
     },

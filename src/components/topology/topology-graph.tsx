@@ -15,6 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { toFlowGraph } from "./adapter";
+import { FloorClosetBreakdown } from "./floor-closet-breakdown";
 import type { PositionedFlowGraph } from "./layout";
 import type { FlowNodeData } from "./types";
 import type { NetworkPlanData } from "@/components/comparison/types";
@@ -189,7 +190,8 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
   }
 
   return (
-    <div className="h-80 w-full overflow-hidden rounded-lg border bg-background">
+    <div className="space-y-4">
+      <div className="h-80 w-full overflow-hidden rounded-lg border bg-background">
       <ReactFlow
         nodes={positionedGraph.nodes}
         edges={positionedGraph.edges}
@@ -212,6 +214,8 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
           {positionedGraph.warnings.length} topology warning(s)
         </p>
       )}
+      </div>
+      <FloorClosetBreakdown nodes={graph.nodes} />
     </div>
   );
 }
