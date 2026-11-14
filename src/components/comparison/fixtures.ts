@@ -1,6 +1,7 @@
 // src/components/comparison/fixtures.ts  (dev/QA only, never imported by Comparison)
 import type { BomLineItem, NetworkPlanData, PlanTier, VendorName, VendorPlansPayload } from "./types";
 import { engineScenarios } from "./engine-sample-fixtures.ts";
+import { topo002StressScenario } from "./topo002-stress-fixture";
 
 const AT = "Oct 28, 2026, 9:00 AM";
 
@@ -71,4 +72,5 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
     },
   },
   ...engineScenarios, // engineSample, engineSampleComplete, engineSampleMixed
+  topo002Stress: topo002StressScenario,
 };
