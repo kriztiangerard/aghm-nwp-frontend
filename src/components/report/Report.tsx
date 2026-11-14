@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
@@ -296,9 +296,9 @@ const handleCsvDownload = () => {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <h2 className="text-xl font-semibold">Project summary</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border bg-muted/30 px-5 py-4 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
           {[
             ["Company / project", report.project.companyName],
             ["Locations", report.project.locations],
@@ -311,41 +311,36 @@ const handleCsvDownload = () => {
                 : `${report.project.floorArea} m²`,
             ],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="mt-1 font-medium">{value || "Not specified"}</p>
+            <div
+              key={label}
+              className="min-w-0 border-l-2 border-primary/40 pl-3"
+            >
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {label}
+              </dt>
+              <dd className="mt-0.5 break-words text-sm font-semibold">
+                {value || "Not specified"}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <h2 className="text-xl font-semibold">Network requirements</h2>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Requirement</th>
-                <th className="p-3">Specified value</th>
-                <th className="p-3">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.requirements.map((requirement, index) => (
-                <tr
-                  key={`${requirement.label}-${index}`}
-                  className="border-t"
-                >
-                  <td className="p-3 font-medium">{requirement.label}</td>
-                  <td className="p-3">{requirement.value}</td>
-                  <td className="p-3 capitalize text-muted-foreground">
-                    {requirement.source}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <dl className="border-t sm:columns-2 sm:gap-x-10 lg:columns-3">
+          {report.requirements.map((requirement, index) => (
+            <div
+              key={`${requirement.label}-${index}`}
+              className="grid break-inside-avoid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-4 border-b py-2 text-sm"
+            >
+              <dt className="text-muted-foreground">{requirement.label}</dt>
+              <dd className="break-words text-left font-medium">
+                {requirement.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="space-y-4">
