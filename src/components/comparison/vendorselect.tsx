@@ -6,11 +6,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PlanTier, VendorName } from "./types";
+import { VENDOR_NAMES, type PlanTier, type VendorName } from "./types";
 
 interface VendorSelectProps {
   tier: PlanTier;
   selectedVendor: VendorName;
+  /** Vendors with a complete plan for this tier. */
   availableVendors: VendorName[];
   onVendorChange: (vendor: VendorName) => void;
 }
@@ -27,21 +28,28 @@ export const VendorSelect: React.FC<VendorSelectProps> = ({
     <div className="pt-1">
       <label
         htmlFor={id}
-        className="text-xs font-medium text-muted-foreground mb-1.5 block"
+        className="mb-1.5 block text-xs font-medium text-muted-foreground"
       >
         Vendor
       </label>
+
       <Select
         value={selectedVendor}
         onValueChange={(value) => onVendorChange(value as VendorName)}
       >
-        <SelectTrigger id={id} className="w-full" aria-label={`Vendor for ${tier} plan`}>
+        <SelectTrigger
+          id={id}
+          className="w-full"
+          aria-label={`Vendor for ${tier} plan`}
+        >
           <SelectValue placeholder="Choose a vendor..." />
         </SelectTrigger>
+
         <SelectContent>
-          {availableVendors.map((vendor) => (
+          {VENDOR_NAMES.map((vendor) => (
             <SelectItem key={vendor} value={vendor}>
               {vendor}
+              {!availableVendors.includes(vendor) && " (Unavailable)"}
             </SelectItem>
           ))}
         </SelectContent>

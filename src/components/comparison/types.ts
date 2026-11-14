@@ -45,6 +45,29 @@ export interface BomLineItem {
 export interface NetworkPlanData {
   vendor: VendorName;
   tier: PlanTier;
+  topology?: {
+  nodes: Array<{
+    id: string;
+    role: string;
+    layer: string;
+    label: string;
+    sku?: string;
+    qty?: number;
+    status?: "ACTIVE" | "SUNSETTING";
+    count?: number | null;
+    clientKind?: string;
+    integrates?: string[];
+    integratedWith?: string;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    type: string;
+    medium: string;
+    count?: number;
+  }>;
+};
   bom: BomLineItem[];
   totalCost: number; // sum of the priced lines only
   totalIsPartial: boolean; // true when any line has a null price

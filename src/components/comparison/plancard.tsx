@@ -1,3 +1,4 @@
+
 import React, { useId } from "react";
 import {
   Card,
@@ -7,11 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
-import { cn } from "@/lib/utils"; // NWP-COMPARE-002
+import { cn } from "@/lib/utils";
 import { formatCurrency, formatDateTime, PRICE_UNAVAILABLE } from "./format";
 import type { NetworkPlanData, PlanTier, VendorName } from "./types";
 import { VendorSelect } from "./vendorselect";
@@ -24,11 +24,10 @@ interface PlanCardProps {
   availableVendors: VendorName[];
   onVendorChange: (vendor: VendorName) => void;
   planData: NetworkPlanData;
-  // NWP-COMPARE-002
   isSelected: boolean;
   onSelect: () => void;
-  /** The plan's `complete` flag. False disables selection. */
   selectable: boolean;
+  onProceed?: () => void;
 }
 
 export const PlanCard: React.FC<PlanCardProps> = ({
@@ -40,68 +39,85 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   isSelected,
   onSelect,
   selectable,
+  onProceed,
 }) => {
-  const isCostEfficient = tier === "Cost-Efficient";
-  // A partial total with nothing priced would read as 0.00, so say so instead.
-  const nothingPriced = planData.totalIsPartial && planData.totalCost === 0;
-  // The engine also marks a total partial when the plan is incomplete, so the
-  // note must not claim missing prices unless a line really has none.
-  const hasUnpriced = planData.bom.some((l) => l.unitPrice === null);
-
-  // NWP-COMPARE-002
   const titleId = useId();
+  const isCostEfficient = tier === "Cost-Efficient";
+  const canSelect = selectable && planData.complete;
+  const isSelectionMode = !onProceed;
+
+  const nothingPriced =
+    planData.totalIsPartial && planData.totalCost === 0;
+  const hasUnpriced = planData.bom.some(
+    (line) => line.unitPrice === null,
+  );
 
   const handleCardClick = () => {
-    if (selectable) onSelect();
-  };
-
-  // Only act when the card itself has focus, so Enter/Space inside the vendor
-  // dropdown or the select button keep their own behaviour.
-  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      if (selectable) onSelect();
+    if (isSelectionMode && canSelect) {
+      onSelect();
     }
   };
 
-  // React events bubble through portals, so this also stops clicks inside the
-  // dropdown list (rendered outside the card in the DOM) from reaching the card.
-  const stopBubbling = (e: React.SyntheticEvent) => e.stopPropagation();
+  const handleCardKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (
+      event.target !== event.currentTarget ||
+      !isSelectionMode ||
+      !canSelect
+    ) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect();
+    }
+  };
+
+  const stopBubbling = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
 
   return (
     <Card
-      role="radio"
-      aria-checked={isSelected}
-      aria-disabled={!selectable}
+      role={isSelectionMode ? "radio" : "region"}
+      aria-checked={isSelectionMode ? isSelected : undefined}
+      aria-disabled={isSelectionMode ? !canSelect : undefined}
       aria-labelledby={titleId}
-      tabIndex={selectable ? 0 : -1}
+      tabIndex={isSelectionMode && canSelect ? 0 : undefined}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       className={cn(
-        "flex flex-col h-full min-w-0 outline-none transition-[box-shadow,border-color]",
+        "flex h-full min-w-0 flex-col outline-none",
+        "transition-[box-shadow,border-color]",
         "focus-visible:ring-2 focus-visible:ring-ring",
-        selectable && "cursor-pointer",
-        isSelected
+        isSelectionMode && canSelect && "cursor-pointer",
+        isSelectionMode && isSelected
           ? "border-primary ring-2 ring-primary shadow-xl shadow-primary/40"
           : "border-border/80 shadow-sm",
       )}
     >
-      <CardHeader className="pb-4 space-y-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <CardTitle id={titleId} className="text-xl font-bold">
-              {isCostEfficient ? "Cost-Efficient Plan" : "High-Performance Plan"}
-            </CardTitle>
-          </div>
+      <CardHeader className="flex flex-col gap-4 space-y-0 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <CardTitle id={titleId} className="text-xl font-bold">
+            {isCostEfficient
+              ? "Cost-Efficient Plan"
+              : "High-Performance Plan"}
+          </CardTitle>
+
           <CardDescription className="text-xs">
             {isCostEfficient
-              ? "Essential qualifying hardware meeting all baseline requirements."
-              : "Next-tier hardware with growth headroom and lower utilization ceiling."}
+              ? "Hardware selected to meet baseline requirements at a lower cost."
+              : "Next-tier hardware with growth headroom and a lower utilization ceiling."}
           </CardDescription>
         </div>
 
-        <div className="sm:w-52 shrink-0" onClick={stopBubbling} onKeyDown={stopBubbling}>
+        <div
+          className="shrink-0 sm:w-52"
+          onClick={stopBubbling}
+          onKeyDown={stopBubbling}
+        >
           <VendorSelect
             tier={tier}
             selectedVendor={selectedVendor}
@@ -113,39 +129,65 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
       <Separator />
 
-      <CardContent className="flex-1 pt-5 space-y-6">
-        <TopologyPlaceholder tier={tier} selectedVendor={selectedVendor} />
-
-        {!planData.complete && (
+      <CardContent className="flex-1 space-y-6 pt-5">
+        {planData.complete ? (
+          <TopologyPlaceholder
+            tier={tier}
+            selectedVendor={selectedVendor}
+            topology={planData.topology}
+          />
+        ) : (
           <div
             role="alert"
-            className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs space-y-1.5"
+            className="space-y-1.5 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs"
           >
-            <p className="font-semibold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+            <p className="flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
+              <AlertTriangle
+                className="h-4 w-4"
+                aria-hidden="true"
+              />
               This plan is incomplete. Unmet requirements:
             </p>
-            <ul className="list-disc pl-5 space-y-0.5 text-foreground">
-              {planData.unmet.map((u) => (
-                <li key={u}>{u}</li>
-              ))}
-            </ul>
+
+            {planData.unmet.length > 0 ? (
+              <ul className="list-disc space-y-0.5 pl-5 text-foreground">
+                {planData.unmet.map((requirement, index) => (
+                  <li key={`${index}-${requirement}`}>
+                    {requirement}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-foreground">
+                No requirement details were provided for this plan.
+              </p>
+            )}
           </div>
         )}
 
-        <ComponentTable bom={planData.bom} currency={planData.currency} />
+        <ComponentTable
+          bom={planData.bom}
+          currency={planData.currency}
+        />
 
-        <div className="text-right space-y-0.5">
+        <div className="space-y-0.5 text-right">
           <span className="text-2xl font-extrabold text-primary">
             {nothingPriced
               ? PRICE_UNAVAILABLE
-              : formatCurrency(planData.totalCost, planData.currency)}
+              : formatCurrency(
+                  planData.totalCost,
+                  planData.currency,
+                )}
           </span>
-          <span className="text-xs text-muted-foreground block">
-            {planData.totalIsPartial ? "Partial total" : "Estimated total"}
+
+          <span className="block text-xs text-muted-foreground">
+            {planData.totalIsPartial
+              ? "Partial total"
+              : "Estimated total"}
           </span>
+
           {planData.totalIsPartial && (
-            <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
+            <span className="block text-[11px] text-amber-700 dark:text-amber-400">
               {hasUnpriced
                 ? "Excludes items with unavailable prices"
                 : "Excludes the unmet requirements listed above"}
@@ -153,28 +195,42 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           )}
         </div>
 
-        {/* NWP-COMPARE-002 */}
         <Button
           type="button"
           className="w-full"
-          variant={isSelected ? "default" : "outline"}
-          disabled={!selectable}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
+          variant={onProceed || isSelected ? "default" : "outline"}
+          disabled={!canSelect}
+          onClick={(event) => {
+            event.stopPropagation();
+
+            if (!canSelect) return;
+
+            if (onProceed) {
+              onProceed();
+            } else {
+              onSelect();
+            }
           }}
         >
-          {isSelected ? "Selected" : "Select this plan"}
+          {onProceed
+            ? "Proceed to final report"
+            : isSelected
+              ? "Selected"
+              : "Select this plan"}
         </Button>
       </CardContent>
 
-      <CardFooter className="pt-2 pb-4 border-t bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+      <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 pb-4 pt-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" />
+          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           Pricing generated {formatDateTime(planData.generatedAt)}
         </span>
+
         <span className="flex items-center gap-1">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <CheckCircle2
+            className="h-3.5 w-3.5 text-emerald-600"
+            aria-hidden="true"
+          />
           One-time hardware estimate
         </span>
       </CardFooter>

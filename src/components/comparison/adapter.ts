@@ -72,6 +72,7 @@ interface EngineOptics {
 interface EnginePlan {
   vendor: string;
   planType: EngineTier;
+  topology?: NetworkPlanData["topology"];
   complete: boolean;
   items: EngineItem[];
   bom: EngineBom;
@@ -193,6 +194,7 @@ const adaptPlan = (
   return {
     vendor,
     tier,
+    topology: plan.topology,
     bom: plan.bom.lines.map((l) => adaptLine(l, categoryBySku, sunsetting)),
     // bom.total is null when nothing is priced. 0 plus totalIsPartial lets the
     // card show "price unavailable" instead of a misleading 0.00.
