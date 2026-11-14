@@ -10,6 +10,7 @@ import {
 import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
 import type { Plan } from "@/types/api-types";
+import { DisclaimerAlert } from "./disclaimeralert";
 
 function toBackendVendor(vendor: string): string {
   if (vendor === "HPE Aruba Instant On") return "Aruba Instant On";
@@ -480,21 +481,9 @@ const handleCsvDownload = () => {
         </section>
       )}
 
-      <section className="space-y-4 rounded-xl border p-5">
-        <div>
-          <h2 className="text-xl font-semibold">{disclaimer.title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {disclaimer.generatedAtLine}
-          </p>
-        </div>
-
-        {disclaimer.paragraphs.map((paragraph, index) => (
-          <p key={index} className="text-sm leading-relaxed text-muted-foreground">
-            {paragraph}
-          </p>
-        ))}
-
-        <div className="flex flex-wrap gap-3 border-t pt-4 print:hidden">
+      <section className="space-y-4">
+        <DisclaimerAlert generatedAt={result.engineResult.generatedAt} />
+        <div className="flex flex-wrap gap-3 print:hidden">
           <button
             type="button"
             onClick={handlePdfDownload}
