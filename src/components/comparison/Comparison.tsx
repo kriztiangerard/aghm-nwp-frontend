@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
 import { PlanCard } from "./plancard";
 import { EmptyPlanCard, EmptyState, LoadingState } from "./plan-states";
@@ -11,7 +11,7 @@ import {
   type VendorName,
   type VendorPlansPayload,
 } from "./types";
-
+import { useSelectedPlan } from "./selected-plan-context";
 // NWP-COMPARE-002
 export interface PlanChoice {
   tier: PlanTier;
@@ -67,18 +67,16 @@ const ComparisonView: React.FC<ComparisonProps> = ({
     return result;
   }, [plansData]);
 
-  const [choice, setChoice] = useState<Record<PlanTier, VendorName | null>>({
-    "Cost-Efficient": null,
-    "High-Performance": null,
-  });
-
-  // NWP-COMPARE-002: the selection is held by tier (the card), not by vendor,
-  // so it follows the vendor dropdown. In-memory only: no storage, no router state.
-  const [selectedTier, setSelectedTier] = useState<PlanTier | null>(null);
+  const {
+  panelChoices,
+  selectedTier,
+  setPanelChoice,
+  setSelectedTier,
+} = useSelectedPlan();
 
   const shownVendor = (tier: PlanTier): VendorName | undefined => {
     const list = vendorsByTier[tier];
-    const picked = choice[tier];
+    const picked = panelChoices[tier];
     if (picked && list.includes(picked)) return picked;
     const preferred = defaultVendors?.[tier];
     if (preferred && list.includes(preferred)) return preferred;
@@ -102,7 +100,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   // NWP-COMPARE-002: keep the selection on this card, but clear it when the
   // newly chosen vendor's plan is incomplete.
   const handleVendorChange = (tier: PlanTier, vendor: VendorName) => {
-    setChoice((c) => ({ ...c, [tier]: vendor }));
+    setPanelChoice(tier, vendor);
     if (selectedTier === tier && plansData?.[vendor]?.[tier]?.complete !== true) {
       setSelectedTier(null);
     }
