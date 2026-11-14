@@ -1,6 +1,6 @@
 // Single source of truth for the comparison front end.
 // Imported by Comparison, PlanCard, the adapter, and the final report page.
-
+import type { TopologyPayload } from "@/components/topology/types";
 // One spelling everywhere. The engine matches on the catalog `vendor` string,
 // so these values must equal the catalog values exactly.
 export const VENDOR_NAMES = [
@@ -43,6 +43,7 @@ export interface BomLineItem {
 }
 
 export interface NetworkPlanData {
+  topology?: TopologyPayload | null;
   vendor: VendorName;
   tier: PlanTier;
   bom: BomLineItem[];

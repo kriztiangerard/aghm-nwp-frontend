@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"; // NWP-COMPARE-002
 import { formatCurrency, formatDateTime, PRICE_UNAVAILABLE } from "./format";
 import type { NetworkPlanData, PlanTier, VendorName } from "./types";
 import { VendorSelect } from "./vendorselect";
-import { TopologyPlaceholder } from "./topology-placeholder";
+import { TopologyGraph } from "@/components/topology/topology-graph";
 import { ComponentTable } from "./componenttable";
 
 interface PlanCardProps {
@@ -114,7 +114,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       <Separator />
 
       <CardContent className="flex-1 pt-5 space-y-6">
-        <TopologyPlaceholder tier={tier} selectedVendor={selectedVendor} />
+        <TopologyGraph planData={planData} />
 
         {!planData.complete && (
           <div

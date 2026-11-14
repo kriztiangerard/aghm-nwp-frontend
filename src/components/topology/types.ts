@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { Plan } from '@/types/api-types';
+
 
 /**
  * ENGINE-016 topology role vocabulary:
@@ -29,6 +29,14 @@ export type TopologyMedium =
   | 'wireless';
 
 /** Mirrors the node structure produced by ENGINE-016. */
+export interface TopologyPlacement {
+  floorId: string;
+  floorLabel: string;
+  closetId: string;
+  closetLabel: string;
+  qty: number;
+}
+
 export interface TopologyNode {
   id: string;
   role: string;
@@ -41,6 +49,7 @@ export interface TopologyNode {
   integratedWith?: string;
   count?: number | null;
   clientKind?: string;
+  placements?: TopologyPlacement[];
 }
 
 /** Mirrors the edge structure produced by ENGINE-016. */
@@ -75,6 +84,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   integratedWith?: string;
   count?: number | null;
   clientKind?: string;
+  placements?: TopologyPlacement[];
 }
 
 /**
@@ -97,4 +107,11 @@ export type FlowGraphResult =
       warnings: TopologyWarning[];
     };
 
-export type TopologyPlan = Pick<Plan, 'bom' | 'topology'>;
+export interface TopologyPlan {
+  bom: {
+    sku: string;
+    name: string;
+    category: string;
+  }[];
+  topology?: TopologyPayload | null;
+}

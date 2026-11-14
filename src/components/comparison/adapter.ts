@@ -1,3 +1,4 @@
+import type { TopologyPayload } from "@/components/topology/types";
 import {
   VENDOR_NAMES,
   type BomCategory,
@@ -8,6 +9,7 @@ import {
   type VendorName,
   type VendorPlansPayload,
 } from "./types";
+
 
 // ---------------------------------------------------------------------------
 // ENGINE SHAPES (contracts.js v3, checked against a real engine output)
@@ -70,6 +72,7 @@ interface EngineOptics {
 }
 
 interface EnginePlan {
+  topology?: TopologyPayload | null;
   vendor: string;
   planType: EngineTier;
   complete: boolean;
@@ -194,14 +197,14 @@ const adaptPlan = (
     vendor,
     tier,
     bom: plan.bom.lines.map((l) => adaptLine(l, categoryBySku, sunsetting)),
-    // bom.total is null when nothing is priced. 0 plus totalIsPartial lets the
-    // card show "price unavailable" instead of a misleading 0.00.
+    // Null total means no priced items; retain the existing fallback.
     totalCost: plan.bom.total ?? 0,
     totalIsPartial: plan.bom.totalIsPartial,
     complete: plan.complete,
     unmet: plan.unmet.map(formatUnmet),
     generatedAt,
     currency: plan.bom.currency,
+    topology: plan.topology ?? null,
     advisories: advisories.length > 0 ? advisories : undefined,
   };
 };

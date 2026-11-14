@@ -11,8 +11,25 @@ export const engineSample: EngineResult = {
       vendor: "TP-Link Omada",
       planType: "CE",
       complete: false,
-      items: [
-        { category: "gateway", sku: "ER7206", qty: 1 },
+topology: {
+  nodes: [
+    { id: "wan-1", role: "wan", layer: "wan", label: "Internet" },
+    { id: "gateway-1", role: "gateway", layer: "gateway", label: "Gateway", sku: "ER7206", qty: 1 },
+    { id: "switch-1", role: "switch", layer: "core", label: "Core Switch", sku: "SG3428", qty: 1 },
+    { id: "controller-1", role: "controller", layer: "management", label: "Controller", sku: "OC200", qty: 1 },
+    { id: "ap-1", role: "access_point", layer: "edge", label: "Access Points", sku: "EAP610", qty: 4 },
+    { id: "clients-1", role: "client_group", layer: "edge", label: "Wi-Fi Clients", count: 40, clientKind: "wifi_devices" },
+  ],
+  edges: [
+    { id: "e1", source: "wan-1", target: "gateway-1", type: "wan" },
+    { id: "e2", source: "gateway-1", target: "switch-1", type: "uplink" },
+    { id: "e3", source: "gateway-1", target: "controller-1", type: "management" },
+    { id: "e4", source: "switch-1", target: "ap-1", type: "poe" },
+    { id: "e5", source: "ap-1", target: "clients-1", type: "access" },
+  ],
+},
+items: [
+  { category: "gateway", sku: "ER7206", qty: 1 },
         { category: "switch", sku: "SG3428", qty: 1 },
         { category: "access_point", sku: "EAP610", qty: 4 },
         { category: "controller", sku: "OC200", qty: 1 },
@@ -42,8 +59,23 @@ export const engineSample: EngineResult = {
       vendor: "TP-Link Omada",
       planType: "HP",
       complete: false,
-      items: [
-        { category: "gateway", sku: "ER8411", qty: 1 },
+topology: {
+  nodes: [
+    { id: "wan-1", role: "wan", layer: "wan", label: "Internet" },
+    { id: "gateway-1", role: "gateway", layer: "gateway", label: "Gateway", sku: "ER8411", qty: 1 },
+    { id: "switch-1", role: "switch", layer: "core", label: "Core Switch", sku: "SG3428", qty: 1 },
+    { id: "ap-1", role: "access_point", layer: "edge", label: "Access Points", sku: "EAP670", qty: 5 },
+    { id: "clients-1", role: "client_group", layer: "edge", label: "Wi-Fi Clients", count: 60, clientKind: "wifi_devices" },
+  ],
+  edges: [
+    { id: "e1", source: "wan-1", target: "gateway-1", type: "wan" },
+    { id: "e2", source: "gateway-1", target: "switch-1", type: "uplink" },
+    { id: "e3", source: "switch-1", target: "ap-1", type: "poe" },
+    { id: "e4", source: "ap-1", target: "clients-1", type: "access" },
+  ],
+},
+items: [
+  { category: "gateway", sku: "ER8411", qty: 1 },
         { category: "switch", sku: "SG3428", qty: 1 },
         { category: "access_point", sku: "EAP670", qty: 5 },
       ],
@@ -107,8 +139,75 @@ const engineSampleMixed: EngineResult = {
 };
 
 // Spread into `scenarios` in fixtures.ts:  { ...existing, ...engineScenarios }
+const engineSamplePlacements: EngineResult = {
+  ...engineSample,
+  plans: engineSample.plans.map((plan) => ({
+    ...plan,
+    topology: plan.topology
+      ? {
+          ...plan.topology,
+          nodes: plan.topology.nodes.map((node) => {
+            const total =
+              node.role === "access_point"
+                ? node.qty
+                : node.role === "client_group"
+                  ? node.count
+                  : undefined;
+
+            if (
+              (node.role === "access_point" ||
+                node.role === "client_group") &&
+              typeof total === "number" &&
+              total > 0
+            ) {
+              const first = Math.ceil(total / 2);
+              const second = total - first;
+
+              return {
+                ...node,
+                placements: [
+                  {
+                    floorId: "floor-1",
+                    floorLabel: "Floor 1",
+                    closetId: "closet-1",
+                    closetLabel: "Floor 1 Main Network Closet",
+                    qty: first,
+                  },
+                  {
+                    floorId: "floor-2",
+                    floorLabel: "Floor 2",
+                    closetId: "closet-2",
+                    closetLabel: "Floor 2 Main Network Closet",
+                    qty: second,
+                  },
+                ],
+              };
+            }
+
+            if (node.layer === "core") {
+              return {
+                ...node,
+                placements: [
+                  {
+                    floorId: "floor-1",
+                    floorLabel: "Floor 1",
+                    closetId: "closet-1",
+                    closetLabel: "Floor 1 Main Network Closet",
+                    qty: node.qty ?? 1,
+                  },
+                ],
+              };
+            }
+
+            return node;
+          }),
+        }
+      : plan.topology,
+  })),
+};
 export const engineScenarios: Record<string, VendorPlansPayload> = {
   engineSample: adaptEngineResult(engineSample).plansData,
+  engineSamplePlacements: adaptEngineResult(engineSamplePlacements).plansData,
   engineSampleComplete: adaptEngineResult(engineSampleComplete).plansData,
   engineSampleMixed: adaptEngineResult(engineSampleMixed).plansData,
 };
