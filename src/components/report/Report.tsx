@@ -3,6 +3,9 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
 import TopologyDiagram from "./TopologyDiagram";
+import InstallationMaterialsSummary from "./InstallationMaterialsSummary";
+import BomTable from "./BomTable";
+import BomStatusLegend from "./BomStatusLegend";
 import {
   buildReport,
   type ReportBomLine,
@@ -32,110 +35,6 @@ function safeFileName(value: string): string {
     .replace(/[^a-z0-9-_]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase() || "network-plan";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function InstallationMaterials({
-  materials,
-}: {
-  materials: Record<string, unknown> | null;
-}) {
-  if (!materials) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No installation materials summary was provided for this plan.
-      </p>
-    );
-  }
-
-  const items = Array.isArray(materials.items)
-    ? materials.items.filter(isRecord)
-    : [];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-        {typeof materials.asOfDate === "string" && (
-          <span>Pricing date: {materials.asOfDate}</span>
-        )}
-        {typeof materials.pricingBasis === "string" && (
-          <span>Basis: {materials.pricingBasis}</span>
-        )}
-      </div>
-
-      {items.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Material</th>
-                <th className="p-3">Description</th>
-                <th className="p-3">Unit</th>
-                <th className="p-3">Representative price</th>
-                <th className="p-3">Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr
-                  key={`${String(item.item ?? "material")}-${index}`}
-                  className="border-t"
-                >
-                  <td className="p-3 font-medium">
-                    {String(item.item ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(item.description ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(item.unit ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(
-                      item.priceDisplay ??
-                        (item.representativeUnitPrice != null
-                          ? item.representativeUnitPrice
-                          : "Not specified"),
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {typeof item.sourceUrl === "string" &&
-                    item.sourceUrl.startsWith("https://") ? (
-                      <a
-                        href={item.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline underline-offset-4"
-                      >
-                        View source
-                      </a>
-                    ) : typeof item.priceReference === "string" ? (
-                      item.priceReference
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No individual installation material items were provided.
-        </p>
-      )}
-
-      {typeof materials.note === "string" && (
-        <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-          {materials.note}
-        </p>
-      )}
-    </div>
-  );
 }
 
 function HardwareList({ lines }: { lines: ReportBomLine[] }) {
@@ -358,68 +257,11 @@ const handleCsvDownload = () => {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Network Equipment BOM</h2>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Category / SKU</th>
-                <th className="p-3">Device</th>
-                <th className="p-3">Vendor</th>
-                <th className="p-3 text-right">Qty</th>
-                <th className="p-3 text-right">Unit price</th>
-                <th className="p-3 text-right">Line total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.bom.lines.map((line, index) => (
-                <tr
-                  key={`${line.sku}-${index}`}
-                  className="border-t"
-                >
-                  <td className="p-3">
-                    <div>{line.category}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {line.sku}
-                    </div>
-                  </td>
-                  <td className="p-3">{line.name}</td>
-                  <td className="p-3">{line.vendor}</td>
-                  <td className="p-3 text-right">{line.qty}</td>
-                  <td className="p-3 text-right">
-                    {formatMoney(line.unitPrice, report.bom.currency)}
-                  </td>
-                  <td className="p-3 text-right">
-                    {formatMoney(line.lineTotal, report.bom.currency)}
-                  </td>
-                </tr>
-              ))}
-              {report.bom.lines.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-4 text-center text-muted-foreground">
-                    No BOM line items were provided.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot className="border-t bg-muted/50">
-              <tr>
-                <td colSpan={5} className="p-3 text-right font-semibold">
-                  {report.bom.totalIsPartial ? "Total (partial)" : "Total"}
-                </td>
-                <td className="p-3 text-right font-semibold">
-                  {formatMoney(report.bom.total, report.bom.currency)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Network Equipment BOM</h2>
+          <BomStatusLegend />
         </div>
-        {report.bom.totalIsPartial && (
-          <p className="text-sm text-muted-foreground">
-            Some equipment prices are unavailable. The displayed total
-            includes priced items only.
-          </p>
-        )}
+        <BomTable bom={report.bom} />
       </section>
 
       <section className="space-y-4">
@@ -427,7 +269,7 @@ const handleCsvDownload = () => {
           Installation Materials Summary
         </h2>
         <div className="rounded-xl border p-4">
-          <InstallationMaterials materials={report.installationMaterials} />
+          <InstallationMaterialsSummary materials={report.installationMaterials} />
         </div>
       </section>
 
