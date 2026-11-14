@@ -63,6 +63,72 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
       ]),
     },
   },
+  pricingStates: {
+    "TP-Link Omada": {
+      "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", [
+        line({
+          sku: "QA-MANUAL-STALE",
+          name: "QA Gateway - Stale Manual Price",
+          category: "Gateway",
+          quantity: 1,
+          unitPrice: 3500,
+          priceSource: "manual",
+          isStale: true,
+          priceUpdatedAt: "2026-09-01",
+        }),
+        line({
+          sku: "QA-SYNC-FRESH",
+          name: "QA Access Point - Fresh Synchronized Price",
+          category: "Access Point",
+          quantity: 2,
+          unitPrice: 5200,
+          priceSource: "synchronized",
+          isStale: false,
+          priceUpdatedAt: "2026-11-14",
+        }),
+        line({
+          sku: "QA-MANUAL-FRESH",
+          name: "QA Switch - Fresh Manual Price",
+          category: "Switch",
+          quantity: 1,
+          unitPrice: 4100,
+          priceSource: "manual",
+          isStale: false,
+          priceUpdatedAt: "2026-11-14",
+        }),
+        line({
+          sku: "QA-SYNC-STALE",
+          name: "QA Controller - Stale Synchronized Price",
+          category: "Controller",
+          quantity: 1,
+          unitPrice: 6500,
+          priceSource: "synchronized",
+          isStale: true,
+          priceUpdatedAt: "2026-08-15",
+        }),
+      ]),
+    },
+  },
+  longBom: {
+    "TP-Link Omada": {
+      "Cost-Efficient": plan(
+        "TP-Link Omada",
+        "Cost-Efficient",
+        Array.from({ length: 75 }, (_, index) =>
+          line({
+            sku: `QA-BOM-${String(index + 1).padStart(3, "0")}`,
+            name: `QA Pagination Device ${index + 1}`,
+            category: "Switch",
+            quantity: 1,
+            unitPrice: 1000 + index * 50,
+            priceSource: "manual",
+            isStale: false,
+            priceUpdatedAt: "2026-11-14",
+          }),
+        ),
+      ),
+    },
+  },
   incomplete: {                                         // AC 4: unmet list, no "complete" check mark
     "TP-Link Omada": {
       "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", omadaCE.bom, {

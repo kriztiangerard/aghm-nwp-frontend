@@ -6,6 +6,7 @@ import Report from './components/report/Report'
 import { PlanResultProvider } from './components/comparison/plan-result-context'
 import { SelectedPlanProvider } from './components/comparison/selected-plan-context'
 import { lazy, Suspense } from "react";
+import { Toaster } from "@/components/ui/sonner";
 
 const ComparisonDev = lazy(() => import("@/components/comparison/ComparisonDev"));
 
@@ -25,6 +26,7 @@ function App() {
             )}
           </Routes>
         </Suspense>
+        <Toaster theme="light" position="top-right" richColors />
       </SelectedPlanProvider>
     </PlanResultProvider>
   )

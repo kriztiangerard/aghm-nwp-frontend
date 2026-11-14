@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { buildReportPdf } from "@/lib/report/buildReportPdf";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Navigate, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
@@ -179,6 +182,9 @@ function HardwareList({ lines }: { lines: ReportBomLine[] }) {
 
 export default function Report() {
   const [isCsvPreviewOpen, setIsCsvPreviewOpen] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const pdfGeneratingRef = useRef(false);
   const navigate = useNavigate();
   const { result } = usePlanResult();
   const { choice, plan } = useSelectedPlan();
@@ -250,10 +256,58 @@ const handleCsvDownload = () => {
   setIsCsvPreviewOpen(false);
 };
 
-  // Interim PDF action: browser print dialog supports Save as PDF.
-  // Replace this with the REPORT-006 PDF exporter when it is ready.
-  const handlePdfDownload = () => {
-    window.print();
+  const handlePdfDownload = async () => {
+    if (pdfGeneratingRef.current) return;
+
+    pdfGeneratingRef.current = true;
+    setIsPdfGenerating(true);
+    setPdfError(null);
+    const toastId = toast.loading("Generating PDF report...");
+
+    try {
+      const blob = await buildReportPdf(report);
+      const url = URL.createObjectURL(blob);
+
+      const now = new Date();
+      const timestamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+      ].join("") + "-" + [
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0"),
+      ].join("");
+
+      const filename = [
+        "NWP",
+        safeFileName(report.project.companyName),
+        safeFileName(report.selectedVendor),
+        safeFileName(report.selectedPlanType),
+        timestamp,
+      ].join("-") + ".pdf";
+
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+
+      toast.success("PDF report download started.", { id: toastId, duration: 2000 });
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      setPdfError("Unable to generate the PDF report. Please try again.");
+      toast.error("Unable to generate the PDF report. Please try again.", {
+        id: toastId,
+      });
+    } finally {
+      pdfGeneratingRef.current = false;
+      setIsPdfGenerating(false);
+    }
   };
 
   return (
@@ -480,13 +534,15 @@ const handleCsvDownload = () => {
 
       <section className="space-y-4">
         <div className="flex flex-wrap gap-3 print:hidden">
-          <button
+          <Button
             type="button"
             onClick={handlePdfDownload}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            disabled={isPdfGenerating}
+            aria-busy={isPdfGenerating}
+            className="h-auto rounded-md px-4 py-2 text-sm font-medium"
           >
-            Download PDF
-          </button>
+            {isPdfGenerating ? "Generating PDF..." : "Download PDF"}
+          </Button>
 
           <button
             type="button"
@@ -497,6 +553,11 @@ const handleCsvDownload = () => {
           </button>
         </div>
       </section>
+      {pdfError && (
+        <p role="alert" className="text-sm text-destructive print:hidden">
+          {pdfError}
+        </p>
+      )}
       {isCsvPreviewOpen && (
   <div
     className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:hidden"

@@ -47,16 +47,66 @@ export default function ComparisonDev() {
   const handleContinue = (choice: PlanChoice, plan: NetworkPlanData) => {
     setContinued({ choice, plan });
 
-    if (name !== "happy" || !happyPlans) {
+    const isReportQaScenario =
+      name === "pricingStates" || name === "longBom";
+
+    if ((name !== "happy" && !isReportQaScenario) || !happyPlans) {
       return;
     }
+
+    const engineResult = isReportQaScenario
+      ? {
+          ...reportDevEngineResult,
+          plans: reportDevEngineResult.plans.map((enginePlan) => {
+            const selectedTier =
+              choice.tier === "Cost-Efficient" ? "CE" : "HP";
+
+            if (
+              enginePlan.vendor !== choice.vendor ||
+              enginePlan.planType !== selectedTier
+            ) {
+              return enginePlan;
+            }
+
+            const lines = plan.bom.map((line) => ({
+              category: line.category
+                .toLowerCase()
+                .replace(/\s+/g, "_") as
+                  import("@/types/api-types").BomCategory,
+              sku: line.sku,
+              name: line.name,
+              vendor: choice.vendor,
+              qty: line.quantity,
+              unitPrice: line.unitPrice,
+              lineTotal: line.subtotal,
+              status: line.status === "SUNSETTING" ? "SUNSETTING" as const : "ACTIVE" as const,
+              isGeneric: line.isGeneric,
+              priceSource: line.priceSource,
+              isStale: line.isStale,
+              priceUpdatedAt: line.priceUpdatedAt ?? undefined,
+            }));
+
+            return {
+              ...enginePlan,
+              bom: {
+                ...enginePlan.bom,
+                lines,
+                total: plan.totalCost,
+                totalIsPartial: plan.totalIsPartial,
+              },
+            };
+          }),
+        }
+      : reportDevEngineResult;
 
     setSelected(choice, plan);
 
     setResult({
-      engineResult: reportDevEngineResult,
+      engineResult,
       questionnaireData: reportDevQuestionnaireData,
-      plansData: happyPlans,
+      plansData: isReportQaScenario
+        ? (scenarios[name] ?? happyPlans)
+        : happyPlans,
       defaultVendors,
     });
 
