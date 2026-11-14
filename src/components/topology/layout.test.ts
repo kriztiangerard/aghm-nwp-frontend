@@ -189,6 +189,48 @@ describe('TOPO-002 deterministic topology layout', () => {
     );
   });
 
+  it('AC3: maintains hierarchy when only a gateway is present', () => {
+    const graph = makeGraph();
+
+    const gatewayOnlyGraph = {
+      ...graph,
+      nodes: graph.nodes.filter((node) => node.id !== 'firewall-1'),
+      edges: graph.edges.filter(
+        (edge) =>
+          edge.source !== 'firewall-1' &&
+          edge.target !== 'firewall-1',
+      ),
+    };
+
+    const result = layoutGraph(gatewayOnlyGraph);
+
+    const getNode = (id: string) => {
+      const node = result.nodes.find((item) => item.id === id);
+
+      if (!node) {
+        throw new Error(`Missing test node: ${id}`);
+      }
+
+      return node;
+    };
+
+    expect(
+      result.nodes.some((node) => node.data.role === 'firewall'),
+    ).toBe(false);
+
+    expect(centerY(getNode('wan-1'))).toBeLessThan(
+      centerY(getNode('gateway-1')),
+    );
+
+    expect(centerY(getNode('gateway-1'))).toBeLessThan(
+      centerY(getNode('core-1')),
+    );
+
+    expect(centerY(getNode('core-1'))).toBeLessThan(
+      centerY(getNode('access-1')),
+    );
+  });
+
   it('preserves the original graph edges', () => {
     const graph = makeGraph();
     const result = layoutGraph(graph);
