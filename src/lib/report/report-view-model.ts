@@ -1,4 +1,9 @@
 import type { QuestionnaireData } from '../../schemas/questionnaireSchema'
+import {
+  formatGeneratedAt,
+  getDisclaimerBlock,
+  type DisclaimerBlock,
+} from '../../lib/disclaimers'
 
 export type ReportPlanType = 'CE' | 'HP'
 
@@ -60,7 +65,9 @@ export interface ReportViewModel {
   assumptions: ReportAssumption[]
   flags: string[]
   limitations: string[]
-  generatedAt: string
+  generatedAt: string        // display string, from the shared formatter
+  generatedAtIso: string     // raw EngineResult.generatedAt, for the Alert and exports
+  disclaimers: DisclaimerBlock
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -650,23 +657,7 @@ function formatSelectedPlanFlags(flags: unknown[]): string[] {
 }
 
 export function formatReportDateTime(generatedAt: string): string {
-  const date = new Date(generatedAt)
-
-  if (Number.isNaN(date.getTime())) {
-    throw new RangeError(`Invalid generatedAt date: ${generatedAt}`)
-  }
-
-  const formatted = new Intl.DateTimeFormat('en-PH', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  }).format(date)
-
-  return `${formatted} (Asia/Manila)`
+  return formatGeneratedAt(generatedAt)
 }
 
 export function buildReport(
@@ -733,6 +724,8 @@ export function buildReport(
       ...selectedPlan.flags,
     ]),    limitations: [...existingEquipmentNotice, ...(selectedPlan.limitations ?? [])],
     generatedAt: formatReportDateTime(result.generatedAt),
+    generatedAtIso: result.generatedAt,
+    disclaimers: getDisclaimerBlock(result.generatedAt)
   }
 }
 
