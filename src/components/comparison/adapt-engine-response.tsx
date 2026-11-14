@@ -1,12 +1,20 @@
+
+import type { EngineResult as ApiEngineResult } from "@/types/api-types";
+import type { QuestionnaireData } from "@/schemas/questionnaireSchema";
 import type { PlanResult } from "./plan-result-context";
-// Adjust this path to wherever the existing adapter file lives.
-import { adaptEngineResult, type EngineResult } from "./adapter";
+import {
+  adaptEngineResult,
+  type EngineResult as AdapterEngineResult,
+} from "./adapter";
 
 /**
- * Converts the body returned by POST /generate into what <Comparison /> expects.
- * Only validates the outer shape, then delegates to the existing adaptEngineResult.
+ * Validates the outer response shape, adapts it for Comparison,
+ * and retains the original response for Final Report and exports.
  */
-export function adaptEngineResponse(body: unknown): PlanResult {
+export function adaptEngineResponse(
+  body: unknown,
+  questionnaireData: QuestionnaireData,
+): PlanResult {
   if (
     typeof body !== "object" ||
     body === null ||
@@ -15,5 +23,13 @@ export function adaptEngineResponse(body: unknown): PlanResult {
   ) {
     throw new Error("Unexpected /generate response shape");
   }
-  return adaptEngineResult(body as EngineResult);
+
+  const engineResult = body as ApiEngineResult;
+  const adapted = adaptEngineResult(body as AdapterEngineResult);
+
+  return {
+    engineResult,
+    questionnaireData,
+    ...adapted,
+  };
 }
