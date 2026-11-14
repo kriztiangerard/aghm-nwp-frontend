@@ -1,6 +1,7 @@
-import type { Bom } from "@/types/api-types";
+import type { ReportViewModel } from "@/lib/report/report-view-model";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
 
+type Bom = ReportViewModel["bom"];
 type Cell = string | number | null;
 
 // Quotes per RFC 4180, and neutralises spreadsheet formula injection on text cells.

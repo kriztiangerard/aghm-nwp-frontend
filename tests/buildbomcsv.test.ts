@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Bom } from "../src/types/api-types";
+import type { ReportViewModel } from "../src/lib/report/report-view-model";
 import { buildBomCsv } from "../src/lib/buildBomCsv";
 import {
   DISCLAIMER_TITLE,
@@ -9,6 +9,8 @@ import {
 } from "../src/lib/disclaimers";
 
 const GENERATED_AT = "2026-11-13T07:04:05.000Z";
+
+type Bom = ReportViewModel["bom"];
 
 // Cast through unknown so the fixture only has to carry the fields the CSV builder reads.
 const makeBom = (overrides: Record<string, unknown> = {}): Bom =>
