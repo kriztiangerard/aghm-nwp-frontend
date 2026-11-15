@@ -1,4 +1,4 @@
-import type { BomLine } from '@/types/api-types';
+
 import type {
   FlowGraphResult,
   TopologyEdge,
@@ -22,12 +22,12 @@ const KNOWN_ROLES = new Set<TopologyRole>([
 ]);
 
 const BOM_CATEGORY_BY_ROLE: Partial<
-  Record<TopologyRole, BomLine['category']>
+  Record<TopologyRole, readonly string[]>
 > = {
-  gateway: 'gateway',
-  controller: 'controller',
-  switch: 'switch',
-  access_point: 'access_point',
+  gateway: ['gateway', 'Gateway'],
+  controller: ['controller', 'Controller'],
+  switch: ['switch', 'Switch'],
+  access_point: ['access_point', 'Access Point'],
 };
 
 /**
@@ -66,22 +66,22 @@ export function toFlowGraph(plan: TopologyPlan): FlowGraphResult {
         });
       }
 
-      const bomCategory = BOM_CATEGORY_BY_ROLE[
-        node.role as TopologyRole
-      ];
+      const bomCategories =
+        BOM_CATEGORY_BY_ROLE[node.role as TopologyRole];
 
       const bomLine =
-        bomCategory && node.sku
+        bomCategories && node.sku
           ? plan.bom.find(
               (line) =>
-                line.category === bomCategory && line.sku === node.sku,
+                bomCategories.includes(line.category) &&
+                line.sku === node.sku,
             )
           : undefined;
 
-      if (bomCategory && !bomLine) {
+      if (bomCategories && !bomLine) {
         warnings.push({
           code: 'BOM_LINE_NOT_FOUND',
-          message: `No matching BOM line found for node "${node.id}" (category: ${bomCategory}, SKU: ${node.sku ?? 'missing'}).`,
+          message: `No matching BOM line found for node "${node.id}" (category: ${bomCategories.join('/')}, SKU: ${node.sku ?? 'missing'}).`,
         });
       }
 

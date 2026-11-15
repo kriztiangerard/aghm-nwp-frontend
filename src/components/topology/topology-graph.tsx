@@ -1,13 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Globe,
-  Router,
-  Shield,
-  Server,
-  Network,
-  Wifi,
-  Monitor,
   Maximize2,
   X,
 } from "lucide-react";
@@ -15,14 +8,7 @@ import {
   Background,
   Controls,
   ControlButton,
-  SmoothStepEdge,
-  Handle,
-  Position,
   ReactFlow,
-  type Node,
-  type NodeProps,
-  type NodeTypes,
-  type EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -30,75 +16,13 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { toFlowGraph } from "./adapter";
 import { FloorClosetBreakdown } from "./floor-closet-breakdown";
+import { nodeTypes, edgeTypes } from "./topology-renderers";
 import type { PositionedFlowGraph } from "./layout";
-import type { FlowNodeData } from "./types";
 import type { NetworkPlanData } from "@/components/comparison/types";
 
 interface TopologyGraphProps {
   planData: NetworkPlanData;
 }
-
-const DEVICE_ICONS = {
-  wan: Globe,
-  gateway: Router,
-  firewall: Shield,
-  controller: Server,
-  switch: Network,
-  access_point: Wifi,
-  client_group: Monitor,
-} as const;
-
-function TopologyNodeView({ data }: NodeProps<Node<FlowNodeData>>) {
-  const Icon =
-    DEVICE_ICONS[data.role as keyof typeof DEVICE_ICONS] ?? Network;
-
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border bg-card px-2 py-2 text-center shadow-sm">
-      <Handle type="target" position={Position.Top} />
-
-      <Icon className="mb-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-
-      <p className="max-w-full truncate text-xs font-semibold">
-        {data.label}
-      </p>
-
-      {data.sku && (
-        <p className="max-w-full truncate text-[10px] text-muted-foreground">
-          {data.sku}
-        </p>
-      )}
-
-      {data.qty !== undefined && (
-        <p className="text-[10px]">Qty: {data.qty}</p>
-      )}
-
-      {data.count !== undefined && data.count !== null && (
-        <p className="text-[10px]">Devices: {data.count}</p>
-      )}
-
-      <Handle type="source" position={Position.Bottom} />
-    </div>
-  );
-}
-
-const nodeTypes: NodeTypes = {
-  wan: TopologyNodeView,
-  gateway: TopologyNodeView,
-  firewall: TopologyNodeView,
-  controller: TopologyNodeView,
-  switch: TopologyNodeView,
-  access_point: TopologyNodeView,
-  client_group: TopologyNodeView,
-  default: TopologyNodeView,
-};
-
-const edgeTypes: EdgeTypes = {
-  wan: SmoothStepEdge,
-  uplink: SmoothStepEdge,
-  poe: SmoothStepEdge,
-  access: SmoothStepEdge,
-  management: SmoothStepEdge,
-};
 
 function TopologyCanvas({
   graph,
@@ -249,29 +173,33 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
       <div className="overflow-hidden rounded-lg border bg-background">
         <Dialog.Root open={expanded} onOpenChange={setExpanded}>
           <Dialog.Portal>
-              <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/60" />
+            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/60" />
 
-              <Dialog.Popup className="fixed inset-4 z-50 flex flex-col overflow-hidden rounded-xl border bg-background shadow-xl md:inset-8">
-                <div className="flex items-center justify-between border-b px-4 py-3">
-                  <Dialog.Title className="text-sm font-semibold">
-                    Network Topology - {planData.vendor} ({planData.tier})
-                  </Dialog.Title>
+            <Dialog.Popup className="fixed inset-4 z-50 flex flex-col overflow-hidden rounded-xl border bg-background shadow-xl md:inset-8">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <Dialog.Title className="text-sm font-semibold">
+                  Network Topology - {planData.vendor} ({planData.tier})
+                </Dialog.Title>
 
-                  <Dialog.Close
-                    render={
-                      <Button variant="ghost" size="icon" aria-label="Close topology">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    }
-                  />
-                </div>
+                <Dialog.Close
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Close topology"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+              </div>
 
-                <div className="min-h-0 flex-1">
-                  <TopologyCanvas graph={positionedGraph} expanded />
-                </div>
-              </Dialog.Popup>
-            </Dialog.Portal>
-          </Dialog.Root>
+              <div className="min-h-0 flex-1">
+                <TopologyCanvas graph={positionedGraph} expanded />
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
 
         <TopologyCanvas
           graph={positionedGraph}
