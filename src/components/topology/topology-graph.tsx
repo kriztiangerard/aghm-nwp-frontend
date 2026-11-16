@@ -1,104 +1,37 @@
-
-import { useEffect, useMemo, useState } from "react";
-import {
-  Globe,
-  Router,
-  Shield,
-  Server,
-  Network,
-  Wifi,
-  Monitor,
-  Maximize2,
-  X,
-} from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { Maximize2, X } from "lucide-react";
 import {
   Background,
   Controls,
   ControlButton,
-  SmoothStepEdge,
-  Handle,
-  Position,
   ReactFlow,
-  type Node,
-  type NodeProps,
-  type NodeTypes,
-  type EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "./topology-theme.css";
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { toFlowGraph } from "./adapter";
 import { FloorClosetBreakdown } from "./floor-closet-breakdown";
 import type { PositionedFlowGraph } from "./layout";
-import type { FlowNodeData } from "./types";
+import {
+  TopologyEdgeMarkers,
+  TopologyMarkerContext,
+  topologyEdgeTypes,
+} from "./topology-edge";
+import { TopologyLegend } from "./topology-legend";
+import { topologyNodeTypes } from "./topology-nodes";
 import type { NetworkPlanData } from "@/components/comparison/types";
 
 interface TopologyGraphProps {
   planData: NetworkPlanData;
 }
 
-const DEVICE_ICONS = {
-  wan: Globe,
-  gateway: Router,
-  firewall: Shield,
-  controller: Server,
-  switch: Network,
-  access_point: Wifi,
-  client_group: Monitor,
-} as const;
-
-function TopologyNodeView({ data }: NodeProps<Node<FlowNodeData>>) {
-  const Icon =
-    DEVICE_ICONS[data.role as keyof typeof DEVICE_ICONS] ?? Network;
-
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border bg-card px-2 py-2 text-center shadow-sm">
-      <Handle type="target" position={Position.Top} />
-
-      <Icon className="mb-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-
-      <p className="max-w-full truncate text-xs font-semibold">
-        {data.label}
-      </p>
-
-      {data.sku && (
-        <p className="max-w-full truncate text-[10px] text-muted-foreground">
-          {data.sku}
-        </p>
-      )}
-
-      {data.qty !== undefined && (
-        <p className="text-[10px]">Qty: {data.qty}</p>
-      )}
-
-      {data.count !== undefined && data.count !== null && (
-        <p className="text-[10px]">Devices: {data.count}</p>
-      )}
-
-      <Handle type="source" position={Position.Bottom} />
-    </div>
-  );
-}
-
-const nodeTypes: NodeTypes = {
-  wan: TopologyNodeView,
-  gateway: TopologyNodeView,
-  firewall: TopologyNodeView,
-  controller: TopologyNodeView,
-  switch: TopologyNodeView,
-  access_point: TopologyNodeView,
-  client_group: TopologyNodeView,
-  default: TopologyNodeView,
-};
-
-const edgeTypes: EdgeTypes = {
-  wan: SmoothStepEdge,
-  uplink: SmoothStepEdge,
-  poe: SmoothStepEdge,
-  access: SmoothStepEdge,
-  management: SmoothStepEdge,
-};
+/** Lowest zoom used when the canvas first fits the graph. */
+const INITIAL_MIN_ZOOM = 0.6;
+/** The expanded dialog has more room, so it can fit more before clamping. */
+const EXPANDED_MIN_ZOOM = 0.45;
 
 function TopologyCanvas({
   graph,
@@ -109,35 +42,56 @@ function TopologyCanvas({
   expanded?: boolean;
   onExpand?: () => void;
 }) {
+  // Unique per canvas: two plan panels and the expanded dialog can be mounted together.
+  const markerPrefix = `topo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+
+  // Large plans are wider than the panel. Fitting the whole graph would
+  // shrink the text below readable size, so the first view stops at a
+  // minimum zoom and the user pans for the rest. The Controls "fit view"
+  // button has no options of its own, so it still shows the whole graph.
+  const fitViewOptions = {
+    padding: 0.05,
+    minZoom: expanded ? EXPANDED_MIN_ZOOM : INITIAL_MIN_ZOOM,
+    maxZoom: 1.25,
+  };
+
   return (
-    <div className={expanded ? "h-full w-full" : "h-80 w-full"}>
-      <ReactFlow
-        nodes={graph.nodes}
-        edges={graph.edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        minZoom={0.1}
-        maxZoom={2}
+    <TopologyMarkerContext.Provider value={markerPrefix}>
+      <div
+        className={cn(
+          "topology-canvas relative",
+          expanded ? "h-full w-full" : "h-[640px] w-full",
+        )}
       >
-        <Background />
-        <Controls showInteractive={false}>
-          {!expanded && onExpand && (
-            <ControlButton
-              onClick={onExpand}
-              title="Expand topology"
-              aria-label="Expand topology"
-            >
-              <Maximize2 size={16} />
-            </ControlButton>
-          )}
-        </Controls>
-      </ReactFlow>
-    </div>
+        <TopologyEdgeMarkers prefix={markerPrefix} />
+        <ReactFlow
+          nodes={graph.nodes}
+          edges={graph.edges}
+          nodeTypes={topologyNodeTypes}
+          edgeTypes={topologyEdgeTypes}
+          fitView
+          fitViewOptions={fitViewOptions}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          minZoom={0.1}
+          maxZoom={2}
+        >
+          <Background />
+          <Controls showInteractive={false}>
+            {!expanded && onExpand && (
+              <ControlButton
+                onClick={onExpand}
+                title="Expand topology"
+                aria-label="Expand topology"
+              >
+                <Maximize2 size={16} />
+              </ControlButton>
+            )}
+          </Controls>
+        </ReactFlow>
+      </div>
+    </TopologyMarkerContext.Provider>
   );
 }
 
@@ -224,6 +178,9 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
       ? workerResult
       : null;
 
+  // Spine edge handles (WAN → gateway → core) are assigned in layout.ts.
+  const positionedGraph = currentWorkerResult?.result ?? null;
+
   if (graph.status === "unavailable") {
     return (
       <div className="flex h-56 items-center justify-center rounded-lg border border-dashed bg-muted/30 p-6 text-center">
@@ -231,8 +188,6 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
       </div>
     );
   }
-
-  const positionedGraph = currentWorkerResult?.result;
 
   if (!positionedGraph) {
     return (
@@ -269,6 +224,12 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
                 <div className="min-h-0 flex-1">
                   <TopologyCanvas graph={positionedGraph} expanded />
                 </div>
+
+                <TopologyLegend
+                  nodes={positionedGraph.nodes}
+                  edges={positionedGraph.edges}
+                  className="max-h-48 overflow-y-auto border-t bg-card px-4 py-3"
+                />
               </Dialog.Popup>
             </Dialog.Portal>
           </Dialog.Root>
@@ -278,6 +239,11 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
           onExpand={() => setExpanded(true)}
         />
       </div>
+
+      <TopologyLegend
+        nodes={positionedGraph.nodes}
+        edges={positionedGraph.edges}
+      />
 
       {positionedGraph.warnings.length > 0 && (
         <p className="text-xs text-muted-foreground">
