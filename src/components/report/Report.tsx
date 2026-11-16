@@ -155,8 +155,11 @@ const handleCsvDownload = () => {
   setIsCsvPreviewOpen(false);
 };
 
-  const handlePdfDownload = async () => {
+  const handlePdfPreview = async () => {
     if (pdfGeneratingRef.current) return;
+
+    // Open synchronously to avoid popup blockers.
+    const previewTab = window.open("", "_blank");
 
     pdfGeneratingRef.current = true;
     setIsPdfGenerating(true);
@@ -164,8 +167,18 @@ const handleCsvDownload = () => {
     const toastId = toast.loading("Generating PDF report...");
 
     try {
+      if (!previewTab) {
+        throw new Error("The browser blocked the PDF preview tab.");
+      }
+
+      previewTab.document.title = "Generating PDF...";
+      previewTab.document.body.textContent = "Generating PDF report...";
+
       const blob = await buildReportPdf(report);
-      const url = URL.createObjectURL(blob);
+
+      if (previewTab.closed) {
+        throw new Error("The PDF preview tab was closed.");
+      }
 
       const now = new Date();
       const timestamp = [
@@ -185,24 +198,58 @@ const handleCsvDownload = () => {
         timestamp,
       ].join("-") + ".pdf";
 
-      try {
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-      } finally {
-        URL.revokeObjectURL(url);
-      }
+      const url = URL.createObjectURL(blob);
+      previewTab.addEventListener(
+        "pagehide",
+        () => URL.revokeObjectURL(url),
+        { once: true },
+      );
 
-      toast.success("PDF report download started.", { id: toastId, duration: 2000 });
+      const doc = previewTab.document;
+      doc.title = filename;
+      doc.body.replaceChildren();
+      doc.body.style.margin = "0";
+      doc.body.style.fontFamily = "Arial, sans-serif";
+
+      const toolbar = doc.createElement("div");
+      toolbar.style.cssText =
+        "display:flex;align-items:center;justify-content:space-between;" +
+        "gap:16px;padding:12px 20px;background:#f3f4f6;";
+
+      const title = doc.createElement("strong");
+      title.textContent = "Network Planning Report";
+
+      const download = doc.createElement("a");
+      download.href = url;
+      download.download = filename;
+      download.textContent = "Download PDF";
+      download.style.cssText =
+        "background:#8200DA;color:white;padding:10px 16px;" +
+        "border-radius:6px;text-decoration:none;font-size:14px;";
+
+      toolbar.append(title, download);
+
+      const viewer = doc.createElement("iframe");
+      viewer.src = url;
+      viewer.title = "PDF report preview";
+      viewer.style.cssText =
+        "display:block;width:100%;height:calc(100vh - 64px);border:0;";
+
+      doc.body.append(toolbar, viewer);
+
+      toast.success("PDF report opened in a new tab.", {
+        id: toastId,
+        duration: 2000,
+      });
     } catch (error) {
-      console.error("PDF export failed:", error);
-      setPdfError("Unable to generate the PDF report. Please try again.");
-      toast.error("Unable to generate the PDF report. Please try again.", {
+      console.error("PDF preview failed:", error);
+      setPdfError("Unable to open the PDF report. Please try again.");
+      toast.error("Unable to open the PDF report. Please try again.", {
         id: toastId,
       });
+      if (previewTab && !previewTab.closed) {
+        previewTab.close();
+      }
     } finally {
       pdfGeneratingRef.current = false;
       setIsPdfGenerating(false);
@@ -378,12 +425,12 @@ const handleCsvDownload = () => {
         <div className="flex flex-wrap gap-3 print:hidden">
           <Button
             type="button"
-            onClick={handlePdfDownload}
+            onClick={handlePdfPreview}
             disabled={isPdfGenerating}
             aria-busy={isPdfGenerating}
-            className="h-auto rounded-md px-4 py-2 text-sm font-medium"
+            className="h-auto rounded-md bg-[#8200DA] px-4 py-2 text-sm font-medium text-white hover:bg-[#7000BC]"
           >
-            {isPdfGenerating ? "Generating PDF..." : "Download PDF"}
+            {isPdfGenerating ? "Generating PDF..." : "View PDF"}
           </Button>
 
           <button

@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 23,
     fontWeight: "bold",
-    color: "#6E11B0",
+    color: "#8200DA",
     marginBottom: 12,
   },
   subtitle: {
@@ -163,7 +163,17 @@ function Section({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle} minPresenceAhead={85}>
+      <Text
+        style={[
+          styles.sectionTitle,
+          {
+            borderLeftWidth: 4,
+            borderLeftColor: "#8200DA",
+            paddingLeft: 10,
+          },
+        ]}
+        minPresenceAhead={85}
+      >
         {title}
       </Text>
       {children}
@@ -207,8 +217,8 @@ function BomRow({
       <Text style={[styles.tableCell, { width: "8%" }]}>
         {line.qty}
       </Text>
-      <View style={{ width: "22%" }}>
-        <Text style={styles.tableCell}>
+      <View style={{ width: "22%", alignItems: "flex-end" }}>
+        <Text style={[styles.tableCell, { textAlign: "right" }]}>
           {money(line.unitPrice, currency)}
         </Text>
         <Text style={styles.tableCell}>{source}</Text>
@@ -231,7 +241,7 @@ function BomRow({
           </Link>
         ))}
       </View>
-      <Text style={[styles.tableCell, { width: "20%" }]}>
+      <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
         {money(line.lineTotal, currency)}
       </Text>
     </View>
@@ -462,10 +472,10 @@ export function ReportPdfDocument({
             <Text style={[styles.tableCell, { width: "8%" }]}>
               Qty
             </Text>
-            <Text style={[styles.tableCell, { width: "22%" }]}>
+            <Text style={[styles.tableCell, { width: "22%", textAlign: "right" }]}>
               Unit price
             </Text>
-            <Text style={[styles.tableCell, { width: "20%" }]}>
+            <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
               Line total
             </Text>
           </View>
@@ -476,11 +486,36 @@ export function ReportPdfDocument({
               currency={report.bom.currency}
             />
           ))}
-          <View style={styles.row} wrap={false}>
-            <Text style={styles.label}>
-              {report.bom.totalIsPartial ? "Total (partial)" : "Total"}
+          <View
+            style={{
+              flexDirection: "row",
+              borderTopWidth: 1,
+              borderTopColor: "#9CA3AF",
+              borderBottomWidth: 0.5,
+              borderBottomColor: "#E5E7EB",
+              backgroundColor: "#F9FAFB",
+              paddingVertical: 9,
+              paddingHorizontal: 5,
+            }}
+            wrap={false}
+          >
+            <Text
+              style={{
+                width: "80%",
+                fontWeight: "bold",
+                fontSize: 8,
+              }}
+            >
+              Equipment subtotal (known prices)
             </Text>
-            <Text style={styles.value}>
+            <Text
+              style={{
+                width: "20%",
+                textAlign: "right",
+                fontWeight: "bold",
+                fontSize: 8,
+              }}
+            >
               {money(report.bom.total, report.bom.currency)}
             </Text>
           </View>
