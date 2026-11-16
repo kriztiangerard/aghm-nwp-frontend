@@ -194,12 +194,41 @@ export const reportDevEngineResult: EngineResult = {
   ],
   flags: [],
   plans: [
-    makePlan(
-      "TP-Link Omada",
-      "CE",
-      { sku: "ER605", name: "Omada ER605 Gateway", price: 3500 },
-      { sku: "EAP610", name: "Omada EAP610 Access Point", price: 5200 },
-    ),
+    (() => {
+      const plan = makePlan(
+        "TP-Link Omada",
+        "CE",
+        { sku: "ER605", name: "Omada ER605 Gateway", price: 3500 },
+        { sku: "EAP610", name: "Omada EAP610 Access Point", price: 5200 },
+      );
+
+      // QA scenario: stale gateway price with a last-verified date.
+      const gateway = plan.bom.lines.find(
+        (line) => line.sku === "ER605",
+      );
+      if (gateway) {
+        gateway.isStale = true;
+        gateway.priceUpdatedAt = "2026-11-10";
+      }
+
+      // QA scenario: unavailable access-point pricing.
+      const accessPoint = plan.bom.lines.find(
+        (line) => line.sku === "EAP610",
+      );
+      if (accessPoint) {
+        accessPoint.unitPrice = null;
+        accessPoint.lineTotal = null;
+      }
+
+      // Only known equipment prices contribute to the partial total.
+      plan.bom.total = plan.bom.lines.reduce(
+        (sum, line) => sum + (line.lineTotal ?? 0),
+        0,
+      );
+      plan.bom.totalIsPartial = true;
+
+      return plan;
+    })(),
     makePlan(
       "TP-Link Omada",
       "HP",

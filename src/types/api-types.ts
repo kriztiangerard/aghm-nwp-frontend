@@ -25,6 +25,7 @@ export interface BomLine {
   priceSource?: 'synchronized' | 'manual';
   isStale?: boolean;
   priceUpdatedAt?: string;
+  priceReferences?: string[];
 }
 
 export interface Bom {
