@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
@@ -10,8 +9,8 @@ import {
   buildReport,
   type ReportBomLine,
 } from "@/lib/report/report-view-model";
-import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
-import { getDisclaimerBlock } from "@/lib/disclaimers";
+import { bomToCsv, downloadCsv } from "@/lib/buildBomCsv";
+import { safeFileName } from "@/lib/fileName";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
 
@@ -20,22 +19,7 @@ function toBackendVendor(vendor: string): string {
   return vendor;
 }
 
-function formatMoney(value: number | null, currency: string): string {
-  if (value === null || !Number.isFinite(value)) return "Price on request";
 
-  return `${currency} ${value.toLocaleString("en-PH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function safeFileName(value: string): string {
-  return value
-    .trim()
-    .replace(/[^a-z0-9-_]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase() || "network-plan";
-}
 
 function HardwareList({ lines }: { lines: ReportBomLine[] }) {
   if (lines.length === 0) {
@@ -77,7 +61,6 @@ function HardwareList({ lines }: { lines: ReportBomLine[] }) {
 }
 
 export default function Report() {
-  const [isCsvPreviewOpen, setIsCsvPreviewOpen] = useState(false);
   const navigate = useNavigate();
   const { result } = usePlanResult();
   const { choice, plan } = useSelectedPlan();
@@ -131,22 +114,14 @@ export default function Report() {
     return <Navigate to="/comparison" replace />;
   }
 
-  const disclaimer = getDisclaimerBlock(result.engineResult.generatedAt);
 
-  const handleCsvPreview = () => {
-  setIsCsvPreviewOpen(true);
-};
 
 const handleCsvDownload = () => {
-  const csv = buildBomCsv(
-    backendPlan.bom,
-    result.engineResult.generatedAt,
-  );
+  const csv = bomToCsv(report);
 
   const fileName = `${safeFileName(report.project.companyName)}-${backendPlanType}-bom.csv`;
 
   downloadCsv(csv, fileName);
-  setIsCsvPreviewOpen(false);
 };
 
   // Interim PDF action: browser print dialog supports Save as PDF.
@@ -332,139 +307,13 @@ const handleCsvDownload = () => {
 
           <button
             type="button"
-            onClick={handleCsvPreview}
+            onClick={handleCsvDownload}
             className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             Download BOM (CSV)
           </button>
         </div>
       </section>
-      {isCsvPreviewOpen && (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:hidden"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        setIsCsvPreviewOpen(false);
-      }
-    }}
-  >
-    <section
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="csv-preview-title"
-      className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-background p-6 shadow-xl"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 id="csv-preview-title" className="text-xl font-bold">
-            BOM CSV Preview
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review the contents before downloading your CSV file.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCsvPreviewOpen(false)}
-          className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="mt-5 space-y-3 rounded-lg border p-4">
-        <h3 className="font-semibold">{disclaimer.title}</h3>
-        <p className="text-sm text-muted-foreground">
-          {disclaimer.generatedAtLine}
-        </p>
-
-        {disclaimer.paragraphs.map((paragraph, index) => (
-          <p
-            key={index}
-            className="text-sm leading-relaxed text-muted-foreground"
-          >
-            {paragraph}
-          </p>
-        ))}
-      </div>
-
-      <div className="mt-5 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-muted">
-            <tr>
-              {[
-                "Category",
-                "SKU",
-                "Device",
-                "Vendor",
-                "Qty",
-                `Unit price (${backendPlan.bom.currency})`,
-                `Line total (${backendPlan.bom.currency})`,
-                "Status",
-              ].map((heading) => (
-                <th key={heading} className="px-4 py-3 font-semibold">
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {backendPlan.bom.lines.map((line, index) => (
-              <tr key={`${line.sku}-${index}`} className="border-t">
-                <td className="px-4 py-3">{line.category}</td>
-                <td className="px-4 py-3">{line.sku}</td>
-                <td className="px-4 py-3">{line.name}</td>
-                <td className="px-4 py-3">{line.vendor}</td>
-                <td className="px-4 py-3">{line.qty}</td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.unitPrice, backendPlan.bom.currency)}
-                </td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.lineTotal, backendPlan.bom.currency)}
-                </td>
-                <td className="px-4 py-3">{line.status}</td>
-              </tr>
-            ))}
-          </tbody>
-
-          <tfoot className="border-t bg-muted/50">
-            <tr>
-              <td colSpan={5} className="px-4 py-3 text-right font-semibold">
-                {backendPlan.bom.totalIsPartial
-                  ? "Total (partial)"
-                  : "Total"}
-              </td>
-              <td className="px-4 py-3 font-bold">
-                {formatMoney(backendPlan.bom.total, backendPlan.bom.currency)}
-              </td>
-              <td colSpan={2}></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div className="mt-6 flex flex-wrap justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => setIsCsvPreviewOpen(false)}
-          className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={handleCsvDownload}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          Download CSV
-        </button>
-      </div>
-    </section>
-  </div>
-)}
     </main>
   );
 }
