@@ -113,7 +113,7 @@ export function FloorClosetBreakdown({
     >
       <div>
         <h4 className="text-sm font-semibold">
-          Logical Floor/Closet Breakdown
+          Groups
         </h4>
         <p className="text-xs text-muted-foreground">
           Deterministic planning approximation, not verified physical

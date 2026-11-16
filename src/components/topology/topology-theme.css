@@ -76,6 +76,17 @@
   --topo-badge-text: var(--foreground);
   --topo-badge-integrated: var(--primary);
   --topo-badge-sunsetting: var(--destructive);
+
+  /*
+   * Floor zones (dashed areas grouping one floor's devices).
+   * The border uses --muted-foreground (about 4.6:1 on the page, above the 3:1
+   * needed for non-text). The label pill uses the client-card pair (≥14:1).
+   * The fill is translucent and sits below the edges, so it never hides a link.
+   */
+  --topo-zone-border: var(--muted-foreground);
+  --topo-zone-bg: color-mix(in oklch, var(--muted) 55%, transparent);
+  --topo-zone-label-bg: var(--secondary);
+  --topo-zone-label-fg: var(--secondary-foreground);
 }
 
 .dark {

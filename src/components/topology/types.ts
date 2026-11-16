@@ -85,6 +85,17 @@ export interface FlowNodeData extends Record<string, unknown> {
   count?: number | null;
   clientKind?: string;
   placements?: TopologyPlacement[];
+  /**
+   * TOPO-003 (floor grouping): the floor zone this node is drawn in.
+   * Set by floor-grouping.ts only when the plan spans two or more floors.
+   */
+  floorId?: string;
+  floorLabel?: string;
+  /**
+   * TOPO-003: for a per-floor AP or client node, the plan-wide total it was
+   * split from (AP qty or client count).
+   */
+  planTotal?: number;
 }
 
 /**

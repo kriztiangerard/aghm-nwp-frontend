@@ -2,7 +2,7 @@ import {
   Boxes,
   Cctv,
   CircleHelp,
-  Globe,
+  Cloud,
   Monitor,
   Network,
   Phone,
@@ -21,7 +21,7 @@ import type { FlowNodeData } from './types';
  */
 
 const ROLE_ICONS: Record<string, LucideIcon> = {
-  wan: Globe,
+  wan: Cloud, // network-diagram convention: the internet/WAN is a cloud
   gateway: Router,
   firewall: Shield,
   controller: Server,
@@ -80,7 +80,7 @@ export function roleColors(role: string): RoleColors {
 export function roleText(data: FlowNodeData): string {
   switch (data.role) {
     case 'wan':
-      return 'Internet / WAN';
+      return 'Internet';
     case 'gateway':
       return 'Gateway';
     case 'firewall':
@@ -129,6 +129,11 @@ export function nodeA11yLabel(data: FlowNodeData): string {
     if (typeof data.qty === 'number') parts.push(`quantity ${data.qty}`);
   }
 
+  if (data.floorLabel) parts.push(`on ${data.floorLabel}`);
+  if (typeof data.planTotal === 'number') {
+    parts.push(`${data.planTotal} in the whole plan`);
+  }
+
   for (const fn of data.integrates ?? []) {
     parts.push(`integrated ${INTEGRATED_LABELS[fn] ?? fn}`);
   }
@@ -138,4 +143,18 @@ export function nodeA11yLabel(data: FlowNodeData): string {
   }
 
   return parts.join(', ');
+}
+
+/**
+ * Detail line for an access point node. A per-floor node shows its share of
+ * the plan total (revised AC10); a plan-wide node shows the total.
+ */
+export function accessPointDetail(data: FlowNodeData): string | undefined {
+  if (typeof data.qty !== 'number') return undefined;
+
+  if (typeof data.planTotal === 'number' && data.floorLabel) {
+    return `${data.qty} of ${data.planTotal} APs · one model`;
+  }
+
+  return `${data.qty} access point${data.qty === 1 ? '' : 's'} · one model`;
 }

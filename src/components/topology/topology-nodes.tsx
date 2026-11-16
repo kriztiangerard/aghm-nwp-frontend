@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { SIDE_HANDLES } from "./edge-routing";
 import {
+  accessPointDetail,
   clientCountText,
   clientIcon,
   nodeA11yLabel,
@@ -32,19 +33,19 @@ import type { FlowNodeData } from "./types";
  * NWP-TOPO-003: custom React Flow node components, one per role, built on
  * shadcn Card and Badge.
  *
- * Each card is filled with its role colour (--topo-node-<role>-bg), and its
- * text uses the matching contrast colour (-fg). The icon sits in an inverted
- * tile, so it is the most prominent mark on the card.
+ * Icon-first cards, in the style of a network diagram: a large device symbol
+ * (from the lucide set) sits at the top of each card, with the role, model
+ * name and SKU centred underneath. The card is filled with its role colour
+ * (--topo-node-<role>-bg). Text uses the matching contrast colour (-fg). The
+ * icon tile swaps the pair, so the symbol is the most prominent mark.
  *
- * All card text is rendered through <CardText>: a block <span> that
- * explicitly inherits the card colour. The app's global styles give <p> its
- * own colour, which previously overrode the card colour and made the product
- * name and SKU hard to read.
+ * All card text goes through <CardText>, which explicitly inherits the card
+ * colour, so global <p> styles cannot recolour it.
  *
  * Nodes show only role, product name, SKU, quantity or count, and badges.
  * No IP addressing, VLAN IDs, port mappings or rack positions are read or
- * rendered (AC9). Card heights are computed in layout.ts
- * (getNodeDimensions); keep the metrics there in step with this file.
+ * rendered (AC9). Card sizes are computed in layout.ts (getNodeDimensions).
+ * Keep CARD_METRICS there in step with the classes here.
  */
 
 type TopologyNodeProps = NodeProps<Node<FlowNodeData>>;
@@ -75,7 +76,7 @@ function SourceBottom() {
   );
 }
 
-/** Side handles for the horizontal spine row (WAN → gateway → core). */
+/** Side handles for the horizontal top row (Internet → gateway → core switch). */
 function SpineHandles() {
   return (
     <>
@@ -126,7 +127,11 @@ function CardText({
   children: ReactNode;
 }) {
   return (
-    <span className={cn("block", className)} style={INHERIT_COLOR} title={title}>
+    <span
+      className={cn("block max-w-full", className)}
+      style={INHERIT_COLOR}
+      title={title}
+    >
       {children}
     </span>
   );
@@ -146,11 +151,11 @@ function cardStyle(colors: RoleColors): CSSProperties {
   };
 }
 
-/** Inverted tile: the fg colour as the tile and the card colour as the icon. */
+/** Large inverted symbol tile: 48 px tile, 28 px icon. */
 function IconTile({
   icon: Icon,
   colors,
-  rounded = "rounded-lg",
+  rounded = "rounded-xl",
 }: {
   icon: LucideIcon;
   colors: RoleColors;
@@ -159,20 +164,21 @@ function IconTile({
   return (
     <span
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center shadow-sm",
+        "flex size-12 shrink-0 items-center justify-center shadow-sm",
         rounded,
       )}
       style={{ backgroundColor: colors.fg, color: colors.bg }}
       aria-hidden="true"
     >
-      <Icon className="size-6" strokeWidth={2.25} />
+      <Icon className="size-7" strokeWidth={2} />
     </span>
   );
 }
 
-function StatusBadges({ data }: { data: FlowNodeData }) {
-  return data.status === "SUNSETTING" ? <SunsettingBadge /> : null;
-}
+const ROLE_TEXT_CLASS =
+  "truncate text-[10px] font-bold uppercase leading-[15px] tracking-wide";
+const NAME_CLASS = "truncate text-xs font-semibold leading-[15px]";
+const MINOR_CLASS = "truncate text-[10px] leading-[15px]";
 
 interface DeviceNodeCardProps {
   data: FlowNodeData;
@@ -196,54 +202,41 @@ function DeviceNodeCard({
     <Card
       role="group"
       aria-label={nodeA11yLabel(data)}
-      className="h-full w-full gap-0 overflow-hidden rounded-xl border py-0 shadow-md"
+      className="relative h-full w-full gap-0 overflow-hidden rounded-xl border py-0 shadow-md"
       style={cardStyle(colors)}
       data-testid={`topology-node-${data.role}`}
     >
-      <div className="flex h-full min-w-0 flex-col gap-1.5 p-2.5">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <IconTile icon={icon ?? roleIcon(data.role)} colors={colors} />
+      {quantityText && (
+        <span
+          className="absolute right-2 top-2 rounded-sm px-1.5 text-[11px] font-bold leading-4 tabular-nums"
+          style={{ backgroundColor: colors.fg, color: colors.bg }}
+        >
+          {quantityText}
+        </span>
+      )}
 
-          <div className="min-w-0 flex-1 leading-[15px]">
-            <div className="flex min-w-0 items-center gap-1">
-              <CardText className="truncate text-[10px] font-bold uppercase leading-[15px] tracking-wide">
-                {roleText(data)}
-              </CardText>
-              {quantityText && (
-                <span
-                  className="ml-auto shrink-0 rounded-sm px-1.5 text-[11px] font-bold leading-4 tabular-nums"
-                  style={{ backgroundColor: colors.fg, color: colors.bg }}
-                >
-                  {quantityText}
-                </span>
-              )}
-            </div>
+      <div className="flex h-full min-w-0 flex-col items-center gap-1.5 px-3 py-3 text-center">
+        <IconTile icon={icon ?? roleIcon(data.role)} colors={colors} />
 
-            <CardText
-              className="truncate text-xs font-semibold leading-[15px]"
-              title={name}
-            >
-              {name}
+        <div className="w-full min-w-0">
+          <CardText className={ROLE_TEXT_CLASS}>{roleText(data)}</CardText>
+          <CardText className={NAME_CLASS} title={name}>
+            {name}
+          </CardText>
+          {data.sku && (
+            <CardText className={cn(MINOR_CLASS, "font-mono")} title={data.sku}>
+              SKU {data.sku}
             </CardText>
-
-            {data.sku && (
-              <CardText
-                className="truncate font-mono text-[10px] leading-[15px]"
-                title={data.sku}
-              >
-                SKU {data.sku}
-              </CardText>
-            )}
-          </div>
+          )}
         </div>
 
-        {detail && (
-          <CardText className="truncate text-[10px] leading-[15px]">
-            {detail}
-          </CardText>
-        )}
+        {detail && <CardText className={MINOR_CLASS}>{detail}</CardText>}
 
-        {badges && <div className="flex flex-wrap gap-1">{badges}</div>}
+        {badges && (
+          <div className="flex w-full flex-wrap justify-center gap-1">
+            {badges}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -252,37 +245,59 @@ function DeviceNodeCard({
 const quantityIfMany = (qty?: number) =>
   typeof qty === "number" && qty > 1 ? `×${qty}` : undefined;
 
+const sunsetting = (data: FlowNodeData) =>
+  data.status === "SUNSETTING" ? <SunsettingBadge /> : undefined;
+
+/** Compact icon-first card for the internet and client groups. */
+function CompactCard({
+  data,
+  icon,
+  colors,
+  title,
+  subtitle,
+  rounded,
+}: {
+  data: FlowNodeData;
+  icon: LucideIcon;
+  colors: RoleColors;
+  title: string;
+  subtitle: string;
+  rounded?: string;
+}) {
+  return (
+    <Card
+      role="group"
+      aria-label={nodeA11yLabel(data)}
+      className="h-full w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl border px-3 py-3 text-center shadow-md"
+      style={cardStyle(colors)}
+      data-testid={`topology-node-${data.role}`}
+    >
+      <IconTile icon={icon} colors={colors} rounded={rounded} />
+      <div className="w-full min-w-0">
+        <CardText className={NAME_CLASS} title={title}>
+          {title}
+        </CardText>
+        <CardText className="truncate text-[11px] leading-[15px] tabular-nums">
+          {subtitle}
+        </CardText>
+      </div>
+    </Card>
+  );
+}
+
 // ---- Role components -------------------------------------------------------
 
 function WanNode({ data }: TopologyNodeProps) {
-  const colors = roleColors("wan");
-
   return (
     <>
-      <Card
-        role="group"
-        aria-label={nodeA11yLabel(data)}
-        className="h-full w-full flex-row items-center gap-2.5 rounded-full border py-0 pl-2 pr-4 shadow-md"
-        style={cardStyle(colors)}
-        data-testid="topology-node-wan"
-      >
-        <IconTile
-          icon={roleIcon("wan")}
-          colors={colors}
-          rounded="rounded-full"
-        />
-        <div className="min-w-0">
-          <CardText className="text-[10px] font-bold uppercase leading-[15px] tracking-wide">
-            Internet / WAN
-          </CardText>
-          <CardText
-            className="truncate text-xs font-semibold leading-[15px]"
-            title={data.label}
-          >
-            {data.label}
-          </CardText>
-        </div>
-      </Card>
+      <CompactCard
+        data={data}
+        icon={roleIcon("wan")}
+        colors={roleColors("wan")}
+        title={data.label}
+        subtitle="Internet service"
+        rounded="rounded-full"
+      />
       <SourceBottom />
       <SpineHandles />
     </>
@@ -290,6 +305,8 @@ function WanNode({ data }: TopologyNodeProps) {
 }
 
 function GatewayNode({ data }: TopologyNodeProps) {
+  const integrates = data.integrates ?? [];
+
   return (
     <>
       <TargetTop />
@@ -297,12 +314,12 @@ function GatewayNode({ data }: TopologyNodeProps) {
         data={data}
         quantityText={quantityIfMany(data.qty)}
         badges={
-          (data.integrates?.length ?? 0) > 0 || data.status === "SUNSETTING" ? (
+          integrates.length > 0 || data.status === "SUNSETTING" ? (
             <>
-              {(data.integrates ?? []).map((fn) => (
+              {integrates.map((fn) => (
                 <IntegratedFunctionBadge key={fn} fn={fn} />
               ))}
-              <StatusBadges data={data} />
+              {sunsetting(data)}
             </>
           ) : undefined
         }
@@ -313,7 +330,7 @@ function GatewayNode({ data }: TopologyNodeProps) {
   );
 }
 
-/** Sits below the gateway; linked by the dashed "Built-in" logical edge (AC2). */
+/** Linked to the gateway by the dashed "Built-in" logical edge (AC2). */
 function FirewallNode({ data }: TopologyNodeProps) {
   return (
     <>
@@ -325,7 +342,7 @@ function FirewallNode({ data }: TopologyNodeProps) {
           data.integratedWith || data.status === "SUNSETTING" ? (
             <>
               {data.integratedWith && <IntegratedWithBadge />}
-              <StatusBadges data={data} />
+              {sunsetting(data)}
             </>
           ) : undefined
         }
@@ -341,7 +358,7 @@ function ControllerNode({ data }: TopologyNodeProps) {
       <DeviceNodeCard
         data={data}
         quantityText={quantityIfMany(data.qty)}
-        badges={data.status === "SUNSETTING" ? <StatusBadges data={data} /> : undefined}
+        badges={sunsetting(data)}
       />
     </>
   );
@@ -354,7 +371,7 @@ function SwitchNode({ data }: TopologyNodeProps) {
       <DeviceNodeCard
         data={data}
         quantityText={quantityIfMany(data.qty)}
-        badges={data.status === "SUNSETTING" ? <StatusBadges data={data} /> : undefined}
+        badges={sunsetting(data)}
       />
       <SourceBottom />
       {data.layer === "core" && <SpineHandles />}
@@ -362,55 +379,38 @@ function SwitchNode({ data }: TopologyNodeProps) {
   );
 }
 
-/** AC10: one grouped node, with the plan's total AP count and its single model. */
+/**
+ * Revised AC10: one grouped node per floor, with that floor's AP count, its
+ * share of the plan total, and the plan's single AP model. In a single-floor
+ * plan this is the one plan-wide node.
+ */
 function AccessPointNode({ data }: TopologyNodeProps) {
-  const qty = typeof data.qty === "number" ? data.qty : undefined;
-
   return (
     <>
       <TargetTop />
       <DeviceNodeCard
         data={data}
-        quantityText={qty !== undefined ? `×${qty}` : undefined}
-        detail={
-          qty !== undefined
-            ? `${qty} access point${qty === 1 ? "" : "s"} · one model`
-            : undefined
-        }
-        badges={data.status === "SUNSETTING" ? <StatusBadges data={data} /> : undefined}
+        quantityText={typeof data.qty === "number" ? `×${data.qty}` : undefined}
+        detail={accessPointDetail(data)}
+        badges={sunsetting(data)}
       />
       <SourceBottom />
     </>
   );
 }
 
-/** AC5: one node per client kind, carrying a count instead of one node per device. */
+/** AC5: grouped client node with a count (per floor when the plan has floors). */
 function ClientGroupNode({ data }: TopologyNodeProps) {
-  const colors = roleColors("client_group");
-
   return (
     <>
       <TargetTop />
-      <Card
-        role="group"
-        aria-label={nodeA11yLabel(data)}
-        className="h-full w-full flex-row items-center gap-2.5 rounded-xl border px-2.5 py-0 shadow-md"
-        style={cardStyle(colors)}
-        data-testid="topology-node-client_group"
-      >
-        <IconTile icon={clientIcon(data.clientKind)} colors={colors} />
-        <div className="min-w-0">
-          <CardText
-            className="truncate text-xs font-semibold leading-[15px]"
-            title={data.label}
-          >
-            {data.label}
-          </CardText>
-          <CardText className="text-[11px] leading-[15px] tabular-nums">
-            {clientCountText(data.count)}
-          </CardText>
-        </div>
-      </Card>
+      <CompactCard
+        data={data}
+        icon={clientIcon(data.clientKind)}
+        colors={roleColors("client_group")}
+        title={data.label}
+        subtitle={clientCountText(data.count)}
+      />
     </>
   );
 }
@@ -423,12 +423,42 @@ function FallbackNode({ data }: TopologyNodeProps) {
       <DeviceNodeCard
         data={data}
         quantityText={quantityIfMany(data.qty)}
-        badges={data.status === "SUNSETTING" ? <StatusBadges data={data} /> : undefined}
+        badges={sunsetting(data)}
       />
       <SourceBottom />
     </>
   );
 }
+
+/**
+ * Floor zone: a dashed, lightly tinted area behind one floor's devices.
+ * Built in topology-graph.tsx from layout zones. It is not a topology device
+ * and is drawn below the edges (zIndex -1).
+ */
+function FloorZoneNode({ data }: TopologyNodeProps) {
+  return (
+    <div
+      className="pointer-events-none relative h-full w-full rounded-2xl border-2 border-dashed"
+      style={{
+        borderColor: "var(--topo-zone-border)",
+        backgroundColor: "var(--topo-zone-bg)",
+      }}
+      data-testid="topology-floor-zone"
+    >
+      <span
+        className="absolute left-3 top-2.5 rounded-md px-2 text-xs font-semibold leading-5"
+        style={{
+          backgroundColor: "var(--topo-zone-label-bg)",
+          color: "var(--topo-zone-label-fg)",
+        }}
+      >
+        {data.label}
+      </span>
+    </div>
+  );
+}
+
+export const FLOOR_ZONE_NODE_TYPE = "floor_zone";
 
 export const topologyNodeTypes: NodeTypes = {
   wan: WanNode,
@@ -438,5 +468,6 @@ export const topologyNodeTypes: NodeTypes = {
   switch: SwitchNode,
   access_point: AccessPointNode,
   client_group: ClientGroupNode,
+  [FLOOR_ZONE_NODE_TYPE]: FloorZoneNode,
   default: FallbackNode,
 };

@@ -1,6 +1,7 @@
 import dagre from '@dagrejs/dagre';
 import type { Node as FlowNode } from '@xyflow/react';
 import { SIDE_HANDLES } from './edge-routing';
+import { compareFloorIds } from './floor-grouping';
 import type {
   FlowNodeData,
   TopologyFlowEdge,
@@ -9,30 +10,32 @@ import type {
 } from './types';
 
 /**
- * TOPO-002 deterministic topology layout.
- *
- * Layout engine: @dagrejs/dagre.
- * Dagre is used because it supports directed hierarchical graphs.
+ * TOPO-002 deterministic topology layout, extended by TOPO-003.
  *
  * Determinism is supported by:
- * - Stable node and edge insertion order.
- * - Dimensions derived only from node data, with a fixed layout configuration.
+ * - Stable node and edge ordering (sorted by rank/floor, then id).
+ * - Dimensions derived only from node data, with a fixed configuration.
  * - No random values or time-dependent calculations.
  *
- * TOPO-003 "spine" row (saves vertical space):
- * the Internet/WAN node(s), the gateway and the core switch unit(s) share the
- * top row and read left to right along the data path:
+ * Two layout paths, both deterministic:
  *
- *   [Internet] → [Gateway] → [Core switch]
- *        firewall · controller · access switches
- *                    access points
- *                    client groups
+ * 1. Floor layout (plans grouped by floor; any node has `floorId`):
  *
- * Dagre lays the spine out as one composite node at rank 0. Afterwards the
- * composite is expanded into its columns (WAN | gateway | core). Members of a
- * column with several units, such as dual WAN or two core switches, are
- * stacked vertically. Edges inside the spine get left/right side handles, so
- * they run horizontally.
+ *      [Internet] → [Gateway] → [Core switch]            ← top row ("spine")
+ *
+ *      Firewall    ┌ Floor 1 ──────────┐ ┌ Floor 2 ──────────┐
+ *      Controller  │  Access switch    │ │  Access switch    │
+ *                  │  APs  PCs  Phones │ │  APs  PCs  Cams   │
+ *                  │  Wi-Fi devices    │ │  Wi-Fi devices    │
+ *                  └───────────────────┘ └───────────────────┘
+ *
+ *    Positions are computed directly. The structure is regular, so a fixed
+ *    arrangement reads more predictably than dagre would, and zones never
+ *    overlap. Zones are returned in `zones` for the canvas to draw.
+ *
+ * 2. Dagre layout (single floor, or no placements): the TOPO-002 dagre
+ *    hierarchy, with the same top row drawn as one composite node that is
+ *    split into its columns after layout.
  *
  * The cache is scoped by caller-provided plan identity and graph content.
  */
@@ -50,52 +53,74 @@ export const LAYOUT_CONFIG = {
   ranker: 'network-simplex',
 } as const;
 
-/** Horizontal gap between spine columns (room for the "WAN" / "Uplink" labels). */
+/** Horizontal gap between top-row columns (room for the "WAN" / "Uplink" labels). */
 const SPINE_COLUMN_GAP = 80;
-/** Vertical gap between stacked units in one spine column. */
+/** Vertical gap between stacked units in one top-row column. */
 const SPINE_STACK_GAP = 24;
 const SPINE_ID = '__topo_spine';
 
-// ---- Node dimensions (TOPO-003) ----------------------------------------------
-// Heights are derived from what each card shows, so cards have no empty band.
-// The metrics mirror topology-nodes.tsx and round up slightly, so text is never clipped.
-
-const NODE_WIDTHS: Record<string, number> = {
-  wan: 210,
-  gateway: 260,
-  firewall: 240,
-  controller: 240,
-  switch: 240,
-  access_point: 240,
-  client_group: 210,
-  default: 240,
+const FLOOR_LAYOUT = {
+  margin: 40,
+  spineToRow: 96,
+  zonePadX: 20,
+  zonePadTop: 48, // room for the floor label pill
+  zonePadBottom: 20,
+  zoneGap: 40,
+  rowGap: 64, // room for edge labels between rows
+  nodeGap: 24,
+  servicesGap: 48,
+  servicesStack: 24,
 };
 
-const FIXED_HEIGHTS: Record<string, number> = {
-  wan: 64,
-  client_group: 64,
+export interface TopologyZone {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// ---- Node dimensions (TOPO-003) ----------------------------------------------
+// Heights are derived from what each card shows. The metrics mirror the
+// classes in topology-nodes.tsx and round up slightly, so text is never clipped.
+
+const NODE_WIDTHS: Record<string, number> = {
+  wan: 180,
+  gateway: 220,
+  firewall: 200,
+  controller: 200,
+  switch: 200,
+  access_point: 200,
+  client_group: 170,
+  default: 200,
 };
 
 const CARD_METRICS = {
-  padding: 20, // p-2.5 top + bottom
-  header: 46, // icon tile (40) beside role, name and SKU lines (3 × 15)
-  rowGap: 6, // gap-1.5
-  detail: 15,
+  padX: 24, // px-3 left + right
+  padY: 24, // py-3 top + bottom
+  tile: 48, // size-12 icon tile
+  gap: 6, // gap-1.5
+  line: 15, // leading-[15px]
   badgeRow: 20, // h-5
   badgeGap: 4, // gap-1
+  sunsettingBadge: 36, // full-width badge, up to two lines
 };
+
+/** Compact cards (internet, client groups): tile + two text lines. */
+const COMPACT_HEIGHT =
+  CARD_METRICS.padY + CARD_METRICS.tile + CARD_METRICS.gap + 2 * CARD_METRICS.line;
 
 const BADGE_TEXT = {
   firewall: 'Integrated firewall',
   controller: 'Integrated controller',
   integratedWith: 'Integrated in gateway',
-  sunsetting: 'Sunsetting · confirm availability',
 } as const;
 
 /** Badge width estimate: icon + gap + padding + border, plus 10 px semibold text. */
 const estimateBadgeWidth = (text: string) => 32 + text.length * 5.8;
 
-function badgeTexts(data: FlowNodeData): string[] {
+function pillBadgeTexts(data: FlowNodeData): string[] {
   const texts: string[] = [];
 
   if (data.role === 'gateway') {
@@ -114,18 +139,16 @@ function badgeTexts(data: FlowNodeData): string[] {
     texts.push(BADGE_TEXT.integratedWith);
   }
 
-  if (data.status === 'SUNSETTING') texts.push(BADGE_TEXT.sunsetting);
-
   return texts;
 }
 
 /** Greedy wrap, matching the flex-wrap badge row. */
-function badgeRowCount(texts: string[], available: number): number {
+function pillRowCount(texts: string[], available: number): number {
   let rows = 0;
   let used = 0;
 
   for (const text of texts) {
-    const width = estimateBadgeWidth(text);
+    const width = Math.min(estimateBadgeWidth(text), available);
 
     if (rows === 0 || used + CARD_METRICS.badgeGap + width > available) {
       rows += 1;
@@ -152,33 +175,50 @@ export function getNodeDimensions(node: TopologyFlowNode): {
   const role = node.data.role;
   const width = NODE_WIDTHS[role] ?? NODE_WIDTHS.default;
 
-  const fixed = FIXED_HEIGHTS[role];
-  if (fixed !== undefined) return { width, height: fixed };
-
-  let height = CARD_METRICS.padding + CARD_METRICS.header;
-
-  if (hasDetailLine(node.data)) {
-    height += CARD_METRICS.rowGap + CARD_METRICS.detail;
+  if (role === 'wan' || role === 'client_group') {
+    return { width, height: COMPACT_HEIGHT };
   }
 
-  const rows = badgeRowCount(
-    badgeTexts(node.data),
-    width - CARD_METRICS.padding,
-  );
+  const textLines = 2 + (node.data.sku ? 1 : 0);
+  let height =
+    CARD_METRICS.padY +
+    CARD_METRICS.tile +
+    CARD_METRICS.gap +
+    textLines * CARD_METRICS.line;
 
-  if (rows > 0) {
-    height +=
-      CARD_METRICS.rowGap +
-      rows * CARD_METRICS.badgeRow +
-      (rows - 1) * CARD_METRICS.badgeGap;
+  if (hasDetailLine(node.data)) {
+    height += CARD_METRICS.gap + CARD_METRICS.line;
+  }
+
+  const pillRows = pillRowCount(
+    pillBadgeTexts(node.data),
+    width - CARD_METRICS.padX,
+  );
+  const sunsetting = node.data.status === 'SUNSETTING';
+
+  if (pillRows > 0 || sunsetting) {
+    height += CARD_METRICS.gap;
+    if (pillRows > 0) {
+      height +=
+        pillRows * CARD_METRICS.badgeRow +
+        (pillRows - 1) * CARD_METRICS.badgeGap;
+    }
+    if (sunsetting) {
+      height +=
+        (pillRows > 0 ? CARD_METRICS.badgeGap : 0) +
+        CARD_METRICS.sunsettingBadge;
+    }
   }
 
   return { width, height: Math.ceil(height) };
 }
 
-// ---- Ranks and spine ---------------------------------------------------------
+type Size = { width: number; height: number };
+type Point = { x: number; y: number };
 
-/** 0 = WAN column, 1 = gateway column, 2 = core column; -1 = not in the spine. */
+// ---- Ranks and the top row -----------------------------------------------------
+
+/** 0 = Internet column, 1 = gateway column, 2 = core column; -1 = not in the top row. */
 function spineColumn(node: TopologyFlowNode): number {
   const { role, layer } = node.data;
 
@@ -202,6 +242,379 @@ function getNodeRank(node: TopologyFlowNode): number {
   return 4;
 }
 
+interface SpineColumn {
+  index: number;
+  members: TopologyFlowNode[];
+  width: number;
+  height: number;
+}
+
+function buildSpine(
+  sortedNodes: TopologyFlowNode[],
+  dimensions: Map<string, Size>,
+) {
+  const buckets: TopologyFlowNode[][] = [[], [], []];
+  for (const node of sortedNodes) {
+    const column = spineColumn(node);
+    if (column >= 0) buckets[column].push(node);
+  }
+
+  const columns: SpineColumn[] = buckets
+    .map((members, index) => ({ index, members }))
+    .filter((column) => column.members.length > 0)
+    .map((column) => ({
+      ...column,
+      width: Math.max(
+        ...column.members.map((node) => dimensions.get(node.id)!.width),
+      ),
+      height:
+        column.members.reduce(
+          (sum, node) => sum + dimensions.get(node.id)!.height,
+          0,
+        ) +
+        SPINE_STACK_GAP * (column.members.length - 1),
+    }));
+
+  const memberColumn = new Map<string, number>();
+  for (const column of columns) {
+    for (const node of column.members) memberColumn.set(node.id, column.index);
+  }
+
+  return {
+    columns,
+    memberColumn,
+    width:
+      columns.reduce((sum, column) => sum + column.width, 0) +
+      SPINE_COLUMN_GAP * Math.max(0, columns.length - 1),
+    height: Math.max(0, ...columns.map((column) => column.height)),
+  };
+}
+
+type Spine = ReturnType<typeof buildSpine>;
+
+/** Places top-row members, centred vertically on `centerY`, starting at `left`. */
+function placeSpine(
+  spine: Spine,
+  left: number,
+  centerY: number,
+  dimensions: Map<string, Size>,
+  positions: Map<string, Point>,
+): void {
+  let columnLeft = left;
+
+  for (const column of spine.columns) {
+    let top = centerY - column.height / 2;
+
+    for (const node of column.members) {
+      const size = dimensions.get(node.id)!;
+      positions.set(node.id, {
+        x: columnLeft + (column.width - size.width) / 2,
+        y: top,
+      });
+      top += size.height + SPINE_STACK_GAP;
+    }
+
+    columnLeft += column.width + SPINE_COLUMN_GAP;
+  }
+}
+
+// ---- Floor layout ----------------------------------------------------------------
+
+const ROW1_CLIENT_ORDER = ['wired_pcs', 'voip_phones', 'cameras', 'other_devices'];
+
+function row1Order(node: TopologyFlowNode): number {
+  if (node.data.role === 'access_point') return 0;
+  const index = ROW1_CLIENT_ORDER.indexOf(node.data.clientKind ?? '');
+  return index >= 0 ? 1 + index : ROW1_CLIENT_ORDER.length + 1;
+}
+
+function floorLayout(
+  sortedNodes: TopologyFlowNode[],
+  dimensions: Map<string, Size>,
+  spine: Spine,
+): { positions: Map<string, Point>; zones: TopologyZone[] } {
+  const L = FLOOR_LAYOUT;
+  const positions = new Map<string, Point>();
+
+  // Group zone members by floor.
+  const floors = new Map<string, { label: string; members: TopologyFlowNode[] }>();
+  const services: TopologyFlowNode[] = [];
+
+  for (const node of sortedNodes) {
+    if (spine.memberColumn.has(node.id)) continue;
+
+    const floorId = node.data.floorId;
+    if (floorId) {
+      const floor = floors.get(floorId) ?? {
+        label: node.data.floorLabel ?? floorId,
+        members: [],
+      };
+      floor.members.push(node);
+      floors.set(floorId, floor);
+    } else {
+      services.push(node);
+    }
+  }
+
+  services.sort(
+    (a, b) =>
+      getNodeRank(a) - getNodeRank(b) ||
+      (a.data.role === 'firewall' ? -1 : b.data.role === 'firewall' ? 1 : 0) ||
+      a.id.localeCompare(b.id),
+  );
+
+  // Lay out each zone in local coordinates (origin = zone top-left).
+  const zoneDrafts = [...floors.entries()]
+    .sort(([a], [b]) => compareFloorIds(a, b))
+    .map(([floorId, floor]) => {
+      const rows: TopologyFlowNode[][] = [[], [], []];
+
+      for (const node of floor.members) {
+        if (node.data.role === 'switch') rows[0].push(node);
+        else if (node.data.clientKind === 'wifi_devices') rows[2].push(node);
+        else rows[1].push(node);
+      }
+
+      rows[1].sort((a, b) => row1Order(a) - row1Order(b) || a.id.localeCompare(b.id));
+
+      const rowWidth = (row: TopologyFlowNode[]) =>
+        row.reduce((sum, node) => sum + dimensions.get(node.id)!.width, 0) +
+        L.nodeGap * Math.max(0, row.length - 1);
+      const rowHeight = (row: TopologyFlowNode[]) =>
+        Math.max(0, ...row.map((node) => dimensions.get(node.id)!.height));
+
+      const innerWidth = Math.max(...rows.map(rowWidth), 1);
+      const local = new Map<string, Point>();
+      let y = L.zonePadTop;
+      let placedRows = 0;
+
+      rows.forEach((row, rowIndex) => {
+        if (row.length === 0) return;
+        if (placedRows > 0) y += L.rowGap;
+
+        const height = rowHeight(row);
+
+        if (rowIndex === 2) {
+          // Wi-Fi devices sit under the access point they connect through.
+          const ap = rows[1].find((node) => node.data.role === 'access_point');
+          const apPos = ap ? local.get(ap.id) : undefined;
+          const apCenter = ap && apPos
+            ? apPos.x + dimensions.get(ap.id)!.width / 2
+            : L.zonePadX + innerWidth / 2;
+
+          let x = apCenter - rowWidth(row) / 2;
+          x = Math.max(L.zonePadX, Math.min(x, L.zonePadX + innerWidth - rowWidth(row)));
+
+          for (const node of row) {
+            const size = dimensions.get(node.id)!;
+            local.set(node.id, { x, y: y + (height - size.height) / 2 });
+            x += size.width + L.nodeGap;
+          }
+        } else {
+          let x = L.zonePadX + (innerWidth - rowWidth(row)) / 2;
+
+          for (const node of row) {
+            const size = dimensions.get(node.id)!;
+            local.set(node.id, { x, y: y + (height - size.height) / 2 });
+            x += size.width + L.nodeGap;
+          }
+        }
+
+        y += height;
+        placedRows += 1;
+      });
+
+      return {
+        id: floorId,
+        label: floor.label,
+        width: innerWidth + 2 * L.zonePadX,
+        height: y + L.zonePadBottom,
+        local,
+      };
+    });
+
+  // Services block: firewall, controller and anything without a floor, side
+  // by side, so every link from the gateway drops straight into its own card
+  // and never passes through a sibling.
+  const servicesWidth =
+    services.reduce((sum, node) => sum + dimensions.get(node.id)!.width, 0) +
+    L.nodeGap * Math.max(0, services.length - 1);
+
+  const rowWidth =
+    (services.length > 0 ? servicesWidth + L.servicesGap : 0) +
+    zoneDrafts.reduce((sum, zone) => sum + zone.width, 0) +
+    L.zoneGap * Math.max(0, zoneDrafts.length - 1);
+
+  // Horizontal alignment. With a services block, the gateway sits directly
+  // above it and the core switch above the zones, so the gateway's links and
+  // the core's links never share a horizontal run. Without one, both rows are
+  // centred.
+  let spineLeft: number;
+  let rowLeft: number;
+
+  const gatewayColumnIndex = spine.columns.findIndex((column) => column.index === 1);
+
+  if (services.length > 0 && gatewayColumnIndex >= 0) {
+    const gatewayOffset =
+      spine.columns
+        .slice(0, gatewayColumnIndex)
+        .reduce((sum, column) => sum + column.width + SPINE_COLUMN_GAP, 0) +
+      spine.columns[gatewayColumnIndex].width / 2;
+
+    rowLeft = L.margin;
+    spineLeft = rowLeft + servicesWidth / 2 - gatewayOffset;
+
+    if (spineLeft < L.margin) {
+      rowLeft += L.margin - spineLeft;
+      spineLeft = L.margin;
+    }
+  } else {
+    const overallWidth = Math.max(rowWidth, spine.width);
+    spineLeft = L.margin + (overallWidth - spine.width) / 2;
+    rowLeft = L.margin + (overallWidth - rowWidth) / 2;
+  }
+
+  // Top row.
+  placeSpine(
+    spine,
+    spineLeft,
+    L.margin + spine.height / 2,
+    dimensions,
+    positions,
+  );
+
+  const rowTop = L.margin + spine.height + L.spineToRow;
+  let x = rowLeft;
+
+  // Services block, aligned with the switch row inside the zones.
+  if (services.length > 0) {
+    let serviceX = x;
+    for (const node of services) {
+      const size = dimensions.get(node.id)!;
+      positions.set(node.id, { x: serviceX, y: rowTop + L.zonePadTop });
+      serviceX += size.width + L.nodeGap;
+    }
+    x += servicesWidth + L.servicesGap;
+  }
+
+  // Zones, left to right by floor.
+  const zones: TopologyZone[] = [];
+  for (const zone of zoneDrafts) {
+    for (const [id, point] of zone.local) {
+      positions.set(id, { x: x + point.x, y: rowTop + point.y });
+    }
+    zones.push({
+      id: zone.id,
+      label: zone.label,
+      x,
+      y: rowTop,
+      width: zone.width,
+      height: zone.height,
+    });
+    x += zone.width + L.zoneGap;
+  }
+
+  return { positions, zones };
+}
+
+// ---- Dagre layout ----------------------------------------------------------------
+
+function dagreLayout(
+  sortedNodes: TopologyFlowNode[],
+  sortedEdges: TopologyFlowEdge[],
+  dimensions: Map<string, Size>,
+  spine: Spine,
+): Map<string, Point> {
+  const nodeIds = new Set(sortedNodes.map((node) => node.id));
+  const hasSpine = spine.columns.length > 0;
+  const layoutIdOf = (id: string) =>
+    spine.memberColumn.has(id) ? SPINE_ID : id;
+
+  const dagreGraph = new dagre.graphlib.Graph({ multigraph: true });
+  dagreGraph.setGraph({ ...LAYOUT_CONFIG });
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+  const layoutNodes: { id: string; rank: number }[] = [];
+
+  if (hasSpine) {
+    dagreGraph.setNode(SPINE_ID, {
+      width: spine.width,
+      height: spine.height,
+      rank: 0,
+    });
+    layoutNodes.push({ id: SPINE_ID, rank: 0 });
+  }
+
+  for (const node of sortedNodes) {
+    if (spine.memberColumn.has(node.id)) continue;
+
+    const rank = getNodeRank(node);
+    dagreGraph.setNode(node.id, { ...dimensions.get(node.id)!, rank });
+    layoutNodes.push({ id: node.id, rank });
+  }
+
+  // Invisible rank anchors enforce the intended top-to-bottom hierarchy,
+  // including for nodes that have no connecting edges.
+  const maxRank = Math.max(0, ...layoutNodes.map((node) => node.rank));
+  const anchorIds: string[] = [];
+
+  for (let rank = 0; rank <= maxRank + 1; rank += 1) {
+    const anchorId = `__topo_rank_anchor_${rank}`;
+    anchorIds.push(anchorId);
+    dagreGraph.setNode(anchorId, { width: 0, height: 0 });
+
+    if (rank > 0) {
+      dagreGraph.setEdge(anchorIds[rank - 1], anchorId, { weight: 100 });
+    }
+  }
+
+  for (const node of layoutNodes) {
+    dagreGraph.setEdge(anchorIds[node.rank], node.id, { weight: 100 });
+    dagreGraph.setEdge(node.id, anchorIds[node.rank + 1], { weight: 100 });
+  }
+
+  const rankOf = new Map(layoutNodes.map((node) => [node.id, node.rank]));
+
+  // Orient layout constraints by the intended hierarchy. Edges inside the top
+  // row are placed by the row itself, not by dagre.
+  for (const edge of sortedEdges) {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) continue;
+
+    const from0 = layoutIdOf(edge.source);
+    const to0 = layoutIdOf(edge.target);
+    if (from0 === to0) continue;
+
+    const forward = (rankOf.get(from0) ?? 0) <= (rankOf.get(to0) ?? 0);
+    dagreGraph.setEdge(
+      forward ? from0 : to0,
+      forward ? to0 : from0,
+      { weight: 2 },
+      edge.id,
+    );
+  }
+
+  dagre.layout(dagreGraph);
+
+  const positions = new Map<string, Point>();
+
+  if (hasSpine) {
+    const center = dagreGraph.node(SPINE_ID);
+    placeSpine(spine, center.x - spine.width / 2, center.y, dimensions, positions);
+  }
+
+  for (const node of sortedNodes) {
+    if (positions.has(node.id)) continue;
+    const positioned = dagreGraph.node(node.id);
+    const size = dimensions.get(node.id)!;
+    positions.set(node.id, {
+      x: positioned.x - size.width / 2,
+      y: positioned.y - size.height / 2,
+    });
+  }
+
+  return positions;
+}
+
 // ---- Cache -------------------------------------------------------------------
 
 const CACHE_LIMIT = 20;
@@ -212,6 +625,8 @@ export interface PositionedFlowGraph {
   status: 'available';
   nodes: FlowNode<FlowNodeData>[];
   edges: TopologyFlowEdge[];
+  /** TOPO-003: floor zones to draw behind the devices (empty without floors). */
+  zones: TopologyZone[];
   warnings: TopologyWarning[];
 }
 
@@ -243,7 +658,7 @@ function stableGraphFingerprint(graph: LayoutInput): string {
       target: edge.target,
       type: edge.type,
       // TOPO-003: every edge shares one `type`, so the link type and medium
-      // now live in data and must be part of the fingerprint.
+      // live in data and must be part of the fingerprint.
       data: edge.data,
     }));
 
@@ -262,6 +677,7 @@ function cloneResult(result: PositionedFlowGraph): PositionedFlowGraph {
       ...edge,
       data: edge.data ? { ...edge.data } : undefined,
     })),
+    zones: result.zones.map((zone) => ({ ...zone })),
     warnings: [...result.warnings],
   };
 }
@@ -327,193 +743,36 @@ export function layoutGraph(
       a.target.localeCompare(b.target),
   );
 
-  const nodeById = new Map(
-    sortedNodes.map((node) => [node.id, node]),
-  );
-
   const dimensions = new Map(
     sortedNodes.map((node) => [node.id, getNodeDimensions(node)]),
   );
 
-  // ---- Spine composite ----
-  const columns: TopologyFlowNode[][] = [[], [], []];
-  for (const node of sortedNodes) {
-    const column = spineColumn(node);
-    if (column >= 0) columns[column].push(node);
-  }
+  const spine = buildSpine(sortedNodes, dimensions);
+  const useFloorLayout = sortedNodes.some((node) => Boolean(node.data.floorId));
 
-  const activeColumns = columns
-    .map((members, index) => ({ index, members }))
-    .filter((column) => column.members.length > 0)
-    .map((column) => {
-      const width = Math.max(
-        ...column.members.map((node) => dimensions.get(node.id)!.width),
-      );
-      const height =
-        column.members.reduce(
-          (sum, node) => sum + dimensions.get(node.id)!.height,
-          0,
-        ) +
-        SPINE_STACK_GAP * (column.members.length - 1);
+  let positions: Map<string, Point>;
+  let zones: TopologyZone[] = [];
 
-      return { ...column, width, height };
-    });
-
-  const spineMemberColumn = new Map<string, number>();
-  for (const column of activeColumns) {
-    for (const node of column.members) {
-      spineMemberColumn.set(node.id, column.index);
-    }
-  }
-
-  const hasSpine = activeColumns.length > 0;
-  const spineWidth =
-    activeColumns.reduce((sum, column) => sum + column.width, 0) +
-    SPINE_COLUMN_GAP * Math.max(0, activeColumns.length - 1);
-  const spineHeight = Math.max(
-    0,
-    ...activeColumns.map((column) => column.height),
-  );
-
-  const layoutIdOf = (id: string) =>
-    spineMemberColumn.has(id) ? SPINE_ID : id;
-
-  // ---- Dagre graph ----
-  const dagreGraph = new dagre.graphlib.Graph({
-    multigraph: true,
-  });
-
-  dagreGraph.setGraph({ ...LAYOUT_CONFIG });
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-
-  const layoutNodes: { id: string; rank: number }[] = [];
-
-  if (hasSpine) {
-    dagreGraph.setNode(SPINE_ID, {
-      width: spineWidth,
-      height: spineHeight,
-      rank: 0,
-    });
-    layoutNodes.push({ id: SPINE_ID, rank: 0 });
-  }
-
-  for (const node of sortedNodes) {
-    if (spineMemberColumn.has(node.id)) continue;
-
-    const rank = getNodeRank(node);
-
-    dagreGraph.setNode(node.id, {
-      ...dimensions.get(node.id)!,
-      rank,
-    });
-    layoutNodes.push({ id: node.id, rank });
-  }
-
-  // Invisible rank anchors enforce the intended top-to-bottom hierarchy,
-  // including for nodes that have no connecting edges.
-  const maxRank = Math.max(0, ...layoutNodes.map((node) => node.rank));
-
-  const anchorIds: string[] = [];
-
-  for (let rank = 0; rank <= maxRank + 1; rank += 1) {
-    const anchorId = `__topo_rank_anchor_${rank}`;
-
-    anchorIds.push(anchorId);
-
-    dagreGraph.setNode(anchorId, {
-      width: 0,
-      height: 0,
-    });
-
-    if (rank > 0) {
-      dagreGraph.setEdge(
-        anchorIds[rank - 1],
-        anchorId,
-        { weight: 100 },
-      );
-    }
-  }
-
-  for (const node of layoutNodes) {
-    dagreGraph.setEdge(anchorIds[node.rank], node.id, { weight: 100 });
-    dagreGraph.setEdge(node.id, anchorIds[node.rank + 1], { weight: 100 });
-  }
-
-  const rankOfLayoutId = new Map(
-    layoutNodes.map((node) => [node.id, node.rank]),
-  );
-
-  // Preserve actual React Flow edges, but orient layout constraints
-  // according to the intended visual hierarchy. Edges inside the spine are
-  // placed by the spine expansion, not by dagre.
-  for (const edge of sortedEdges) {
-    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue;
-
-    const from0 = layoutIdOf(edge.source);
-    const to0 = layoutIdOf(edge.target);
-
-    if (from0 === to0) continue;
-
-    const sourceRank = rankOfLayoutId.get(from0) ?? 0;
-    const targetRank = rankOfLayoutId.get(to0) ?? 0;
-
-    const from = sourceRank <= targetRank ? from0 : to0;
-    const to = sourceRank <= targetRank ? to0 : from0;
-
-    dagreGraph.setEdge(from, to, { weight: 2 }, edge.id);
-  }
-
-  dagre.layout(dagreGraph);
-
-  // ---- Positions ----
-  const positions = new Map<string, { x: number; y: number }>();
-
-  if (hasSpine) {
-    const spine = dagreGraph.node(SPINE_ID);
-    let columnLeft = spine.x - spineWidth / 2;
-
-    for (const column of activeColumns) {
-      let top = spine.y - column.height / 2;
-
-      for (const node of column.members) {
-        const size = dimensions.get(node.id)!;
-
-        positions.set(node.id, {
-          x: columnLeft + (column.width - size.width) / 2,
-          y: top,
-        });
-
-        top += size.height + SPINE_STACK_GAP;
-      }
-
-      columnLeft += column.width + SPINE_COLUMN_GAP;
-    }
+  if (useFloorLayout) {
+    ({ positions, zones } = floorLayout(sortedNodes, dimensions, spine));
+  } else {
+    positions = dagreLayout(sortedNodes, sortedEdges, dimensions, spine);
   }
 
   const nodes: FlowNode<FlowNodeData>[] = sortedNodes.map((node) => {
     const size = dimensions.get(node.id)!;
-    let position = positions.get(node.id);
-
-    if (!position) {
-      const positioned = dagreGraph.node(node.id);
-      position = {
-        x: positioned.x - size.width / 2,
-        y: positioned.y - size.height / 2,
-      };
-    }
-
     return {
       ...node,
-      position,
+      position: positions.get(node.id)!,
       width: size.width,
       height: size.height,
     };
   });
 
-  // Spine edges run horizontally between the facing sides of the columns.
+  // Top-row edges run horizontally between the facing sides of the columns.
   const edges: TopologyFlowEdge[] = sortedEdges.map((edge) => {
-    const sourceColumn = spineMemberColumn.get(edge.source);
-    const targetColumn = spineMemberColumn.get(edge.target);
+    const sourceColumn = spine.memberColumn.get(edge.source);
+    const targetColumn = spine.memberColumn.get(edge.target);
 
     if (
       sourceColumn === undefined ||
@@ -540,6 +799,7 @@ export function layoutGraph(
     status: 'available',
     nodes,
     edges,
+    zones,
     warnings: [...graph.warnings],
   };
 

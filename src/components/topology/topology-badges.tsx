@@ -68,12 +68,21 @@ export function IntegratedWithBadge() {
   );
 }
 
-/** AC8: lifecycle advisory for SUNSETTING devices. */
+/**
+ * AC8: lifecycle advisory for SUNSETTING devices.
+ * On cards it spans the card width and may wrap to two lines, because the full
+ * advice does not fit on one line of a narrow card. layout.ts reserves
+ * SUNSETTING_BADGE_HEIGHT for it. The legend passes a className to keep it on one line.
+ */
 export function SunsettingBadge({ className }: { className?: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn(BADGE_BASE, className)}
+      className={cn(
+        BADGE_BASE,
+        "h-auto w-full whitespace-normal py-1 text-center leading-tight",
+        className,
+      )}
       style={badgeStyle(SUNSETTING)}
       title="This model is being phased out by the vendor. Confirm availability with a distributor before purchase."
       data-testid="badge-sunsetting"
