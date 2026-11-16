@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { buildBomCsv, downloadCsv } from "@/lib/report/buildBomCsv";
+import { bomToCsv, downloadCsv } from "@/lib/report/buildBomCsv";
 import { DisclaimerAlert } from "./disclaimeralert";
 import type { ReportViewModel } from "@/lib/report/report-view-model";
 
@@ -11,7 +11,7 @@ const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").re
 
 export function ReportActions({ report }: { report: ReportViewModel }) {
   const handleCsv = () => {
-    const csv = buildBomCsv(report.bom, report.generatedAtIso);
+    const csv = bomToCsv(report);
     downloadCsv(csv, `bom-${slug(report.selectedVendor)}-${report.selectedPlanType.toLowerCase()}.csv`);
   };
 

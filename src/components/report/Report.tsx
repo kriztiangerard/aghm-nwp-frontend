@@ -10,7 +10,7 @@ import {
   buildReport,
   type ReportBomLine,
 } from "@/lib/report/report-view-model";
-import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
+import { bomToCsv, downloadCsv } from "@/lib/buildBomCsv";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
@@ -20,14 +20,6 @@ function toBackendVendor(vendor: string): string {
   return vendor;
 }
 
-function formatMoney(value: number | null, currency: string): string {
-  if (value === null || !Number.isFinite(value)) return "Price on request";
-
-  return `${currency} ${value.toLocaleString("en-PH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function safeFileName(value: string): string {
   return value
@@ -138,10 +130,7 @@ export default function Report() {
 };
 
 const handleCsvDownload = () => {
-  const csv = buildBomCsv(
-    backendPlan.bom,
-    result.engineResult.generatedAt,
-  );
+  const csv = bomToCsv(report);
 
   const fileName = `${safeFileName(report.project.companyName)}-${backendPlanType}-bom.csv`;
 
@@ -390,18 +379,24 @@ const handleCsvDownload = () => {
       </div>
 
       <div className="mt-5 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[950px] text-left text-sm">
+        <table className="w-full min-w-[1800px] text-left text-sm">
           <thead className="bg-muted">
             <tr>
               {[
                 "Category",
+                "Product Name",
                 "SKU",
-                "Device",
                 "Vendor",
-                "Qty",
-                `Unit price (${backendPlan.bom.currency})`,
-                `Line total (${backendPlan.bom.currency})`,
-                "Status",
+                "Quantity",
+                "Unit Price",
+                "Line Total",
+                "Currency",
+                "Lifecycle Status",
+                "Price Source",
+                "Stale Price",
+                "Last Verified Date",
+                "Price Reference Links",
+                "Notes",
               ].map((heading) => (
                 <th key={heading} className="px-4 py-3 font-semibold">
                   {heading}
@@ -411,40 +406,51 @@ const handleCsvDownload = () => {
           </thead>
 
           <tbody>
-            {backendPlan.bom.lines.map((line, index) => (
+            {report.bom.lines.map((line, index) => (
               <tr key={`${line.sku}-${index}`} className="border-t">
                 <td className="px-4 py-3">{line.category}</td>
-                <td className="px-4 py-3">{line.sku}</td>
                 <td className="px-4 py-3">{line.name}</td>
+                <td className="px-4 py-3">{line.sku}</td>
                 <td className="px-4 py-3">{line.vendor}</td>
                 <td className="px-4 py-3">{line.qty}</td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.unitPrice, backendPlan.bom.currency)}
-                </td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.lineTotal, backendPlan.bom.currency)}
-                </td>
+                <td className="px-4 py-3">{line.unitPrice ?? ""}</td>
+                <td className="px-4 py-3">{line.lineTotal ?? ""}</td>
+                <td className="px-4 py-3">{report.bom.currency}</td>
                 <td className="px-4 py-3">{line.status}</td>
+                <td className="px-4 py-3">{line.priceSource ?? ""}</td>
+                <td className="px-4 py-3">
+                  {line.isStale === true ? "Yes" : "No"}
+                </td>
+                <td className="px-4 py-3">{line.priceUpdatedAt ?? ""}</td>
+                <td className="px-4 py-3">
+                  {(line.priceReferences ?? [])
+                    .filter((url) => /^https?:\/\//i.test(url))
+                    .join(" ")}
+                </td>
+                <td className="px-4 py-3">
+                  {line.unitPrice === null || line.lineTotal === null
+                    ? "Price on request"
+                    : ""}
+                </td>
               </tr>
             ))}
           </tbody>
 
           <tfoot className="border-t bg-muted/50">
             <tr>
-              <td colSpan={5} className="px-4 py-3 text-right font-semibold">
-                {backendPlan.bom.totalIsPartial
-                  ? "Total (partial)"
-                  : "Total"}
+              <td className="px-4 py-3 font-semibold">
+                {report.bom.totalIsPartial ? "Partial total" : "Estimated total"}
               </td>
+              <td colSpan={5}></td>
               <td className="px-4 py-3 font-bold">
-                {formatMoney(backendPlan.bom.total, backendPlan.bom.currency)}
+                {report.bom.total ?? ""}
               </td>
-              <td colSpan={2}></td>
+              <td className="px-4 py-3">{report.bom.currency}</td>
+              <td colSpan={6}></td>
             </tr>
           </tfoot>
         </table>
       </div>
-
       <div className="mt-6 flex flex-wrap justify-end gap-3">
         <button
           type="button"

@@ -39,7 +39,7 @@ describe("buildBomCsv disclaimers (AC1, AC2, AC4)", () => {
   });
 
   it("puts the shared title on the first row", () => {
-    expect(csv.slice(1).split("\r\n")[0]).toBe(DISCLAIMER_TITLE);
+    expect(csv.slice(1).split("\r\n")[0]).toBe(`Disclaimer,${DISCLAIMER_TITLE}`);
   });
 
   it("includes the generated-at line and both shared paragraphs", () => {
@@ -49,7 +49,7 @@ describe("buildBomCsv disclaimers (AC1, AC2, AC4)", () => {
   });
 
   it("places every disclaimer before the BOM header row", () => {
-    const header = csv.indexOf("Category,SKU,Device,Vendor");
+    const header = csv.indexOf("Category,Product Name,SKU,Vendor");
     expect(header).toBeGreaterThan(-1);
     expect(csv.indexOf(block.generatedAtLine)).toBeLessThan(header);
     expect(csv.indexOf(PRICING_DISCLAIMER)).toBeLessThan(header);
@@ -83,9 +83,9 @@ describe("buildBomCsv stability (AC5)", () => {
 describe("buildBomCsv BOM rows", () => {
   it("writes one row per line plus a total row", () => {
     const csv = buildBomCsv(makeBom(), GENERATED_AT);
-    expect(csv).toContain("gateway,ER605,Omada Gateway,TP-Link Omada,1,5000,5000,ACTIVE");
-    expect(csv).toContain("switch,SG2210P,Omada Switch,TP-Link Omada,2,8000,16000,ACTIVE");
-    expect(csv).toContain(",,,,,Total,21000,");
+    expect(csv).toContain("gateway,Omada Gateway,ER605,TP-Link Omada,1,5000,5000,PHP,ACTIVE");
+    expect(csv).toContain("switch,Omada Switch,SG2210P,TP-Link Omada,2,8000,16000,PHP,ACTIVE");
+    expect(csv).toContain("Estimated total,,,,,,21000,PHP");
   });
 
   it("shows 'Price on request' for unpriced lines and marks the total partial", () => {
@@ -95,8 +95,8 @@ describe("buildBomCsv BOM rows", () => {
       totalIsPartial: true,
     });
     const csv = buildBomCsv(bom, GENERATED_AT);
-    expect(csv).toContain("gateway,X1,Gateway X,V,1,Price on request,Price on request,ACTIVE");
-    expect(csv).toContain("Total (partial),Price on request");
+    expect(csv).toContain("gateway,Gateway X,X1,V,1,,,PHP,ACTIVE,,No,,,Price on request");
+    expect(csv).toContain("Partial total,,,,,,,PHP");
   });
 
   it("quotes cells containing commas and doubles embedded quotes", () => {
