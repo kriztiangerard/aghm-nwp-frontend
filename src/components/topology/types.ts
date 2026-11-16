@@ -72,6 +72,19 @@ export interface TopologyWarning {
   message: string;
 }
 
+export type SnapshotHandlePosition =
+  | "top"
+  | "right"
+  | "bottom"
+  | "left";
+
+export interface TopologySnapshotHandle {
+  id: string;
+  type: "source" | "target";
+  position: SnapshotHandlePosition;
+  offset: number;
+}
+
 export interface FlowNodeData extends Record<string, unknown> {
   role: string;
   label: string;
@@ -85,6 +98,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   count?: number | null;
   clientKind?: string;
   placements?: TopologyPlacement[];
+  snapshotHandles?: TopologySnapshotHandle[];
 }
 
 /**

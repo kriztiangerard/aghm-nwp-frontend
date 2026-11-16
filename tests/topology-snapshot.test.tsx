@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NetworkPlanData } from "@/components/comparison/types";
 import { createTopologySnapshot } from "@/components/topology/topology-snapshot";
+import "@xyflow/react/dist/style.css";
+import { topo002StressScenario } from "@/components/comparison/topo002-stress-fixture";
 
 const mocks = vi.hoisted(() => ({
   toPng: vi.fn(),
@@ -22,28 +24,59 @@ vi.mock("@xyflow/react", async (importOriginal) => {
 
   return {
     ...actual,
-    ReactFlowProvider: ({ children }: { children: ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
+
+    ReactFlowProvider: ({
+      children,
+    }: {
+      children: ReactNode;
+    }) => React.createElement(React.Fragment, null, children),
+
     ReactFlow: ({
       nodes,
+      edges,
       onInit,
       ...props
     }: {
       nodes: Array<{ id: string }>;
+      edges: Array<{ id: string }>;
       onInit?: (instance: unknown) => void;
       [key: string]: unknown;
     }) => {
-      mocks.reactFlowProps({ nodes, ...props });
+      mocks.reactFlowProps({
+        nodes,
+        edges,
+        ...props,
+      });
+
       onInit?.({});
 
       return React.createElement(
         "div",
         null,
+
         ...nodes.map((node) =>
           React.createElement("div", {
             className: "react-flow__node",
             key: node.id,
           }),
+        ),
+
+        React.createElement(
+          "svg",
+          null,
+          ...edges.map((edge) =>
+            React.createElement(
+              "g",
+              {
+                className: "react-flow__edge",
+                key: edge.id,
+              },
+              React.createElement("path", {
+                className: "react-flow__edge-path",
+                d: "M 0 0 L 100 100",
+              }),
+            ),
+          ),
         ),
       );
     },
@@ -127,7 +160,10 @@ describe("createTopologySnapshot", () => {
     Object.defineProperty(window, "requestAnimationFrame", {
       configurable: true,
       value: (callback: FrameRequestCallback) =>
-        window.setTimeout(() => callback(performance.now()), 0),
+        window.setTimeout(
+          () => callback(performance.now()),
+          0,
+        ),
     });
   });
 
@@ -161,6 +197,42 @@ describe("createTopologySnapshot", () => {
     expect(mocks.toPng).not.toHaveBeenCalled();
   });
 
+  it("returns unavailable when pixelRatio is invalid", async () => {
+    const result = await createTopologySnapshot(
+      planData,
+      {
+        maxWidth: 1200,
+        pixelRatio: 0,
+      },
+    );
+
+    expect(result.status).toBe("unavailable");
+
+    if (result.status === "unavailable") {
+      expect(result.reason).toContain("pixelRatio");
+    }
+
+    expect(mocks.toPng).not.toHaveBeenCalled();
+  });
+
+  it("returns unavailable when padding is invalid", async () => {
+    const result = await createTopologySnapshot(
+      planData,
+      {
+        maxWidth: 1200,
+        padding: -1,
+      },
+    );
+
+    expect(result.status).toBe("unavailable");
+
+    if (result.status === "unavailable") {
+      expect(result.reason).toContain("padding");
+    }
+
+    expect(mocks.toPng).not.toHaveBeenCalled();
+  });
+
   it("returns a PNG data URL and dimensions after capture", async () => {
     const result = await createTopologySnapshot(
       planData,
@@ -189,12 +261,17 @@ describe("createTopologySnapshot", () => {
   });
 
   it("uses a light print-friendly theme during capture", async () => {
-    mocks.toPng.mockImplementationOnce(async (element: HTMLElement) => {
-      expect(element.style.backgroundColor).toBe("rgb(255, 255, 255)");
-      expect(element.style.colorScheme).toBe("light");
+    mocks.toPng.mockImplementationOnce(
+      async (element: HTMLElement) => {
+        expect(element.style.backgroundColor).toBe(
+          "rgb(255, 255, 255)",
+        );
 
-      return "data:image/png;base64,dGVzdA==";
-    });
+        expect(element.style.colorScheme).toBe("light");
+
+        return "data:image/png;base64,dGVzdA==";
+      },
+    );
 
     const result = await createTopologySnapshot(
       planData,
@@ -259,6 +336,231 @@ describe("createTopologySnapshot", () => {
         }),
       ]),
     );
+  });
+
+  it("passes graph edges to React Flow for rendering", async () => {
+    const result = await createTopologySnapshot(
+      planData,
+      { maxWidth: 1200 },
+    );
+
+    expect(result.status).toBe("success");
+
+    const flowProps = mocks.reactFlowProps.mock.calls[0][0];
+
+    expect(flowProps.edges).toHaveLength(1);
+    expect(flowProps.edges[0]).toEqual(
+      expect.objectContaining({
+        id: "edge-1",
+        source: "gateway-1",
+        target: "switch-1",
+        type: "uplink",
+      }),
+    );
+  });
+
+
+  it("captures the complete 43-node stress topology", async () => {
+    const stressPlan =
+      topo002StressScenario["TP-Link Omada"]["Cost-Efficient"];
+
+    const result = await createTopologySnapshot(
+      stressPlan,
+      { maxWidth: 1200 },
+    );
+
+    expect(result.status).toBe("success");
+    expect(mocks.reactFlowProps).toHaveBeenCalledOnce();
+
+    if (result.status !== "success") {
+      return;
+    }
+
+    const flowProps = mocks.reactFlowProps.mock.calls[0][0];
+    const exportNodes = flowProps.nodes;
+    const exportEdges = flowProps.edges;
+
+    // All 43 original nodes must be retained.
+    expect(exportNodes).toHaveLength(43);
+
+    expect(exportNodes.map((node: { id: string }) => node.id).sort())
+      .toEqual(
+        stressPlan.topology.nodes
+          .map((node) => node.id)
+          .sort(),
+      );
+
+    // All 42 original edges must be retained.
+    expect(exportEdges).toHaveLength(42);
+
+    // Every exported node must preserve its original data.
+const originalNodes = stressPlan.topology.nodes;
+
+for (const originalNode of originalNodes) {
+  const exportedNode = exportNodes.find(
+    (node: { id: string }) => node.id === originalNode.id,
+  );
+
+  expect(exportedNode).toBeDefined();
+
+  expect(exportedNode?.data.role).toBe(originalNode.role);
+expect(exportedNode?.data.label).toBe(originalNode.label);
+expect(exportedNode?.data.sku).toBe(originalNode.sku);
+expect(exportedNode?.data.qty).toBe(originalNode.qty);
+expect(exportedNode?.data.status).toBe(originalNode.status);
+expect(exportedNode?.data.layer).toBe(originalNode.layer);
+expect(exportedNode?.data.integrates).toEqual(originalNode.integrates);
+expect(exportedNode?.data.integratedWith).toBe(originalNode.integratedWith);
+expect(exportedNode?.data.count).toBe(originalNode.count);
+expect(exportedNode?.data.clientKind).toBe(originalNode.clientKind);
+expect(exportedNode?.data.placements).toEqual(originalNode.placements);
+}
+
+// Every exported edge must preserve its original connection.
+const originalEdges = stressPlan.topology.edges;
+
+for (const originalEdge of originalEdges) {
+  const exportedEdge = exportEdges.find(
+    (edge: { id: string }) => edge.id === originalEdge.id,
+  );
+
+  expect(exportedEdge).toBeDefined();
+
+  expect(exportedEdge?.source).toBe(originalEdge.source);
+  expect(exportedEdge?.target).toBe(originalEdge.target);
+}
+
+
+    // Core switch → all five floor switches must use the shared trunk.
+    const exportNodeById = new Map(
+      exportNodes.map((node) => [node.id, node]),
+    );
+
+    const coreUplinkEdges = exportEdges.filter((edge) => {
+      const source = exportNodeById.get(edge.source);
+      const target = exportNodeById.get(edge.target);
+
+      return (
+        source?.data.role === "switch" &&
+        source.data.layer === "core" &&
+        target?.data.role === "switch" &&
+        target.data.layer === "access"
+      );
+    });
+
+    expect(coreUplinkEdges).toHaveLength(5);
+
+    const laneValues = coreUplinkEdges.map(
+      (edge) => edge.data?.snapshotLaneX,
+    );
+
+    for (const edge of coreUplinkEdges) {
+      expect(edge.type).toBe("snapshotCoreUplink");
+      expect(typeof edge.data?.snapshotLaneX).toBe("number");
+      expect(Number.isFinite(edge.data?.snapshotLaneX)).toBe(true);
+
+      const source = exportNodeById.get(edge.source);
+      const target = exportNodeById.get(edge.target);
+
+      const sourceHandle = source?.data.snapshotHandles?.find(
+        (handle) => handle.id === edge.sourceHandle,
+      );
+
+      const targetHandle = target?.data.snapshotHandles?.find(
+        (handle) => handle.id === edge.targetHandle,
+      );
+
+      expect(sourceHandle?.position).toBe("bottom");
+      expect(targetHandle?.position).toBe("left");
+    }
+
+    // Every Core → Floor Switch edge must share one trunk lane.
+    expect(new Set(laneValues).size).toBe(1);
+
+    // Floor Switch → AP routing must remain unchanged.
+    const floorApEdges = exportEdges.filter((edge) => {
+      const source = exportNodeById.get(edge.source);
+      const target = exportNodeById.get(edge.target);
+
+      return (
+        source?.data.role === "switch" &&
+        source.data.layer === "access" &&
+        target?.data.role === "access_point"
+      );
+    });
+
+    expect(floorApEdges).toHaveLength(5);
+
+    for (const edge of floorApEdges) {
+      expect(edge.type).toBe("poe");
+
+      const source = exportNodeById.get(edge.source);
+      const target = exportNodeById.get(edge.target);
+
+      const sourceHandle = source?.data.snapshotHandles?.find(
+        (handle) => handle.id === edge.sourceHandle,
+      );
+
+      const targetHandle = target?.data.snapshotHandles?.find(
+        (handle) => handle.id === edge.targetHandle,
+      );
+
+      expect(sourceHandle?.position).toBe("right");
+      expect(targetHandle?.position).toBe("left");
+    }
+
+    // WAN → Gateway → Core spacing must remain exactly 70px.
+    const wan = exportNodeById.get("wan");
+    const gateway = exportNodeById.get("gateway");
+    const core = exportNodeById.get("core");
+
+    expect(wan).toBeDefined();
+    expect(gateway).toBeDefined();
+    expect(core).toBeDefined();
+
+    const getNodeHeight = (node: typeof wan) =>
+      node!.height ?? node!.measured?.height ?? 80;
+
+    const wanGatewayGap =
+      gateway!.position.y -
+      (wan!.position.y + getNodeHeight(wan));
+
+    const gatewayCoreGap =
+      core!.position.y -
+      (gateway!.position.y + getNodeHeight(gateway));
+
+    expect(wanGatewayGap).toBe(70);
+    expect(gatewayCoreGap).toBe(70);
+
+    expect(exportEdges.map((edge: { id: string }) => edge.id).sort())
+      .toEqual(
+        stressPlan.topology.edges
+          .map((edge) => edge.id)
+          .sort(),
+      );
+
+    // Every edge must still connect existing nodes.
+    const nodeIds = new Set(
+      exportNodes.map((node: { id: string }) => node.id),
+    );
+
+    for (const edge of exportEdges) {
+      expect(nodeIds.has(edge.source)).toBe(true);
+      expect(nodeIds.has(edge.target)).toBe(true);
+    }
+
+    // Every exported node must have valid coordinates.
+    for (const node of exportNodes) {
+      expect(Number.isFinite(node.position.x)).toBe(true);
+      expect(Number.isFinite(node.position.y)).toBe(true);
+    }
+
+    // Export must respect the requested maximum width.
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.width).toBeLessThanOrEqual(1200);
+    expect(result.height).toBeGreaterThan(0);
+
+    expect(mocks.toPng).toHaveBeenCalledOnce();
   });
 
   it("returns unavailable and cleans up when PNG capture fails", async () => {
