@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { buildReportPdf } from "@/lib/report/buildReportPdf";
+import { createTopologySnapshot } from "@/components/topology/topology-snapshot";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -174,7 +175,25 @@ const handleCsvDownload = () => {
       previewTab.document.title = "Generating PDF...";
       previewTab.document.body.textContent = "Generating PDF report...";
 
-      const blob = await buildReportPdf(report);
+      let topologySnapshot: string | null = null;
+
+      try {
+        const snapshot = await createTopologySnapshot(plan, {
+          maxWidth: 1200,
+          padding: 40,
+          pixelRatio: 2,
+        });
+
+        if (snapshot.status === "success") {
+          topologySnapshot = snapshot.dataUrl;
+        } else {
+          console.warn("Topology snapshot unavailable:", snapshot.reason);
+        }
+      } catch (snapshotError) {
+        console.warn("Topology snapshot failed:", snapshotError);
+      }
+
+      const blob = await buildReportPdf(report, topologySnapshot);
 
       if (previewTab.closed) {
         throw new Error("The PDF preview tab was closed.");
