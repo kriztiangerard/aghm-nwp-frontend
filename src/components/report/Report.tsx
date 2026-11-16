@@ -10,6 +10,7 @@ import {
   type ReportBomLine,
 } from "@/lib/report/report-view-model";
 import { bomToCsv, downloadCsv } from "@/lib/buildBomCsv";
+import { safeFileName } from "@/lib/fileName";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
 
@@ -19,13 +20,6 @@ function toBackendVendor(vendor: string): string {
 }
 
 
-function safeFileName(value: string): string {
-  return value
-    .trim()
-    .replace(/[^a-z0-9-_]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase() || "network-plan";
-}
 
 function HardwareList({ lines }: { lines: ReportBomLine[] }) {
   if (lines.length === 0) {

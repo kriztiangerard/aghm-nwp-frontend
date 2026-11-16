@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { bomToCsv, downloadCsv } from "@/lib/report/buildBomCsv";
+import { safeFileName } from "@/lib/fileName";
 import { DisclaimerAlert } from "./disclaimeralert";
 import type { ReportViewModel } from "@/lib/report/report-view-model";
 
@@ -7,12 +8,11 @@ import type { ReportViewModel } from "@/lib/report/report-view-model";
 // Both exports are built from the same ReportViewModel the page shows, so the prices and
 // timestamp cannot differ from what the user saw (AC5).
 
-const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export function ReportActions({ report }: { report: ReportViewModel }) {
   const handleCsv = () => {
     const csv = bomToCsv(report);
-    downloadCsv(csv, `bom-${slug(report.selectedVendor)}-${report.selectedPlanType.toLowerCase()}.csv`);
+    downloadCsv(csv, `bom-${safeFileName(report.selectedVendor)}-${report.selectedPlanType.toLowerCase()}.csv`);
   };
 
   return (
