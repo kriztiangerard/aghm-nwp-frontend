@@ -14,26 +14,38 @@
 :root,
 .dark {
   /*
-   * Text colours used on the filled cards. Both stay the same in light and dark mode:
+   * Glyph colours used on the role-coloured tiles. Both stay the same in light and dark mode:
    * --topo-ink-light is near-white (0.977) and --topo-ink-dark is near-black (0.145).
    */
   --topo-ink-light: var(--primary-foreground);
   --topo-ink-dark: var(--foreground);
 
   /*
-   * Node fills. Each role has a solid background (-bg) and a text colour (-fg).
-   * The icon tile and quantity chip swap the pair, so they have the same contrast.
+   * Card surface. Cards are plain (shadcn card colours); only the icon tile
+   * and quantity chip carry the role colour.
    *
-   * Accessibility: every pair is at least 7:1 (WCAG AAA) in both modes, so the
-   * 10-11 px text on the cards comfortably passes AA (4.5:1). Card text is
-   * always drawn at full opacity; faded text would lower these ratios.
+   * Measured text contrast on the card (light / dark):
+   *   main text (role, name, counts)  19.8 / 17.0   (AAA)
+   *   muted text (SKU, detail line)    5.1 /  6.9   (AA ≥ 4.5)
+   * Card text is never faded with opacity; that would lower these ratios.
+   */
+  --topo-card-bg: var(--card);
+  --topo-card-fg: var(--card-foreground);
+  --topo-card-muted: var(--muted-foreground);
+  --topo-card-border: var(--border);
+
+  /*
+   * Role colours for the icon tile (-bg) and the icon glyph on it (-fg).
+   * The quantity chip uses the same pair.
+   *
+   * Every pair is at least 7:1 in both modes, so the icon reads clearly.
    *
    * Measured contrast (light / dark):
    *   gateway 7.7 / 8.3   firewall 7.9 / 8.0   controller 7.1 / 7.1
    *   switch  8.0 / 8.0   access pt 13.1 / 13.1
    *   client 16.1 / 14.3  internet 15.8 / 14.9
    * The three greens sit at distinct lightness levels (dark, mid, light), so the
-   * controller, switch and access-point cards stay distinguishable.
+   * controller, switch and access-point tiles stay distinguishable.
    * Re-measure if the shadcn palette in index.css changes.
    */
   --topo-node-wan-bg: var(--accent-foreground);

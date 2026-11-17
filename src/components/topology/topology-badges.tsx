@@ -88,7 +88,7 @@ export function SunsettingBadge({ className }: { className?: string }) {
       data-testid="badge-sunsetting"
     >
       <TriangleAlert aria-hidden="true" style={{ color: SUNSETTING }} />
-      Sunsetting · confirm availability
+      Sunsetting
     </Badge>
   );
 }

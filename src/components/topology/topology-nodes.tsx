@@ -4,7 +4,6 @@ import {
   Position,
   type Node,
   type NodeProps,
-  type NodeTypes,
 } from "@xyflow/react";
 import type { LucideIcon } from "lucide-react";
 
@@ -35,12 +34,15 @@ import type { FlowNodeData } from "./types";
  *
  * Icon-first cards, in the style of a network diagram: a large device symbol
  * (from the lucide set) sits at the top of each card, with the role, model
- * name and SKU centred underneath. The card is filled with its role colour
- * (--topo-node-<role>-bg). Text uses the matching contrast colour (-fg). The
- * icon tile swaps the pair, so the symbol is the most prominent mark.
+ * name and SKU centred underneath. Cards use the plain card surface
+ * (white in light mode, near-black in dark mode). Only the icon tile is
+ * filled with the role colour, so the symbol is the most prominent mark.
  *
- * All card text goes through <CardText>, which explicitly inherits the card
- * colour, so global <p> styles cannot recolour it.
+ * All card text goes through <CardText>, which sets its colour explicitly,
+ * so global <p> styles cannot recolour it.
+ *
+ * The node registry lives in flow-types.ts, so this file exports only
+ * components (react-refresh/only-export-components).
  *
  * Nodes show only role, product name, SKU, quantity or count, and badges.
  * No IP addressing, VLAN IDs, port mappings or rack positions are read or
@@ -114,22 +116,33 @@ function SpineHandles() {
 
 // ---- Shared pieces -----------------------------------------------------------
 
-const INHERIT_COLOR: CSSProperties = { color: "inherit" };
+/**
+ * Card text. The colour is set explicitly, so global <p> styles can't
+ * override it.
+ * - "primary": --topo-card-fg on --topo-card-bg (19.8:1 light, 17.0:1 dark)
+ * - "muted":   --topo-card-muted (5.1:1 light, 6.9:1 dark; AA ≥ 4.5),
+ *              used only for the SKU and detail lines
+ */
+const TEXT_COLOR: Record<"primary" | "muted", CSSProperties> = {
+  primary: { color: "var(--topo-card-fg)" },
+  muted: { color: "var(--topo-card-muted)" },
+};
 
-/** Card text that always takes the card's contrast colour. */
 function CardText({
   className,
   title,
+  tone = "primary",
   children,
 }: {
   className?: string;
   title?: string;
+  tone?: "primary" | "muted";
   children: ReactNode;
 }) {
   return (
     <span
-      className={cn("block max-w-full", className)}
-      style={INHERIT_COLOR}
+      className={cn("max-w-full", className)}
+      style={TEXT_COLOR[tone]}
       title={title}
     >
       {children}
@@ -138,20 +151,20 @@ function CardText({
 }
 
 /**
- * Filled card colours. The border mixes in the text colour, so light fills
- * (clients, access points) keep a visible edge on a light page.
- * Text on cards is never faded with opacity, which would lower the contrast
- * ratios documented in topology-theme.css.
+ * Plain card: the shadcn card surface and border in both modes. Only the
+ * icon tile carries the role colour.
  */
-function cardStyle(colors: RoleColors): CSSProperties {
-  return {
-    backgroundColor: colors.bg,
-    color: colors.fg,
-    borderColor: `color-mix(in oklch, ${colors.fg} 35%, ${colors.bg})`,
-  };
-}
+const CARD_STYLE: CSSProperties = {
+  backgroundColor: "var(--topo-card-bg)",
+  color: "var(--topo-card-fg)",
+  borderColor: "var(--topo-card-border)",
+};
 
-/** Large inverted symbol tile: 48 px tile, 28 px icon. */
+/**
+ * Role-coloured symbol tile: 48 px tile, 28 px icon. The tile uses the role
+ * fill (--topo-node-<role>-bg) and the icon its contrast colour (-fg),
+ * at least 7:1 for every role (see topology-theme.css).
+ */
 function IconTile({
   icon: Icon,
   colors,
@@ -167,7 +180,7 @@ function IconTile({
         "flex size-12 shrink-0 items-center justify-center shadow-sm",
         rounded,
       )}
-      style={{ backgroundColor: colors.fg, color: colors.bg }}
+      style={{ backgroundColor: colors.bg, color: colors.fg }}
       aria-hidden="true"
     >
       <Icon className="size-7" strokeWidth={2} />
@@ -176,9 +189,19 @@ function IconTile({
 }
 
 const ROLE_TEXT_CLASS =
-  "truncate text-[10px] font-bold uppercase leading-[15px] tracking-wide";
-const NAME_CLASS = "truncate text-xs font-semibold leading-[15px]";
-const MINOR_CLASS = "truncate text-[10px] leading-[15px]";
+  "block truncate text-[10px] font-bold uppercase leading-[15px] tracking-wide";
+/**
+ * QA fix (TC-001 step 5): full catalogue names ("TP-Link SG3428MP 24-Port PoE+
+ * Switch") are wider than the card, so the product name may wrap to two
+ * lines instead of being cut off. layout.ts reserves the second line
+ * (nameLineCount); anything longer than two lines ends in an ellipsis, and the
+ * full name is in the title.
+ */
+const NAME_CLASS =
+  "line-clamp-2 break-words text-xs font-semibold leading-[15px]";
+/** Compact cards (internet, client groups) keep a one-line title. */
+const COMPACT_TITLE_CLASS = "block truncate text-xs font-semibold leading-[15px]";
+const MINOR_CLASS = "block truncate text-[10px] leading-[15px]";
 
 interface DeviceNodeCardProps {
   data: FlowNodeData;
@@ -203,13 +226,13 @@ function DeviceNodeCard({
       role="group"
       aria-label={nodeA11yLabel(data)}
       className="relative h-full w-full gap-0 overflow-hidden rounded-xl border py-0 shadow-md"
-      style={cardStyle(colors)}
+      style={CARD_STYLE}
       data-testid={`topology-node-${data.role}`}
     >
       {quantityText && (
         <span
           className="absolute right-2 top-2 rounded-sm px-1.5 text-[11px] font-bold leading-4 tabular-nums"
-          style={{ backgroundColor: colors.fg, color: colors.bg }}
+          style={{ backgroundColor: colors.bg, color: colors.fg }}
         >
           {quantityText}
         </span>
@@ -224,13 +247,21 @@ function DeviceNodeCard({
             {name}
           </CardText>
           {data.sku && (
-            <CardText className={cn(MINOR_CLASS, "font-mono")} title={data.sku}>
+            <CardText
+              className={cn(MINOR_CLASS, "font-mono")}
+              tone="muted"
+              title={data.sku}
+            >
               SKU {data.sku}
             </CardText>
           )}
         </div>
 
-        {detail && <CardText className={MINOR_CLASS}>{detail}</CardText>}
+        {detail && (
+          <CardText className={MINOR_CLASS} tone="muted">
+            {detail}
+          </CardText>
+        )}
 
         {badges && (
           <div className="flex w-full flex-wrap justify-center gap-1">
@@ -269,15 +300,15 @@ function CompactCard({
       role="group"
       aria-label={nodeA11yLabel(data)}
       className="h-full w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl border px-3 py-3 text-center shadow-md"
-      style={cardStyle(colors)}
+      style={CARD_STYLE}
       data-testid={`topology-node-${data.role}`}
     >
       <IconTile icon={icon} colors={colors} rounded={rounded} />
       <div className="w-full min-w-0">
-        <CardText className={NAME_CLASS} title={title}>
+        <CardText className={COMPACT_TITLE_CLASS} title={title}>
           {title}
         </CardText>
-        <CardText className="truncate text-[11px] leading-[15px] tabular-nums">
+        <CardText className="block truncate text-[11px] leading-[15px] tabular-nums">
           {subtitle}
         </CardText>
       </div>
@@ -287,7 +318,7 @@ function CompactCard({
 
 // ---- Role components -------------------------------------------------------
 
-function WanNode({ data }: TopologyNodeProps) {
+export function WanNode({ data }: TopologyNodeProps) {
   return (
     <>
       <CompactCard
@@ -304,7 +335,7 @@ function WanNode({ data }: TopologyNodeProps) {
   );
 }
 
-function GatewayNode({ data }: TopologyNodeProps) {
+export function GatewayNode({ data }: TopologyNodeProps) {
   const integrates = data.integrates ?? [];
 
   return (
@@ -331,7 +362,7 @@ function GatewayNode({ data }: TopologyNodeProps) {
 }
 
 /** Linked to the gateway by the dashed "Built-in" logical edge (AC2). */
-function FirewallNode({ data }: TopologyNodeProps) {
+export function FirewallNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -351,7 +382,7 @@ function FirewallNode({ data }: TopologyNodeProps) {
   );
 }
 
-function ControllerNode({ data }: TopologyNodeProps) {
+export function ControllerNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -364,7 +395,7 @@ function ControllerNode({ data }: TopologyNodeProps) {
   );
 }
 
-function SwitchNode({ data }: TopologyNodeProps) {
+export function SwitchNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -384,7 +415,7 @@ function SwitchNode({ data }: TopologyNodeProps) {
  * share of the plan total, and the plan's single AP model. In a single-floor
  * plan this is the one plan-wide node.
  */
-function AccessPointNode({ data }: TopologyNodeProps) {
+export function AccessPointNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -400,7 +431,7 @@ function AccessPointNode({ data }: TopologyNodeProps) {
 }
 
 /** AC5: grouped client node with a count (per floor when the plan has floors). */
-function ClientGroupNode({ data }: TopologyNodeProps) {
+export function ClientGroupNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -416,7 +447,7 @@ function ClientGroupNode({ data }: TopologyNodeProps) {
 }
 
 /** Unknown roles: the adapter already raised UNKNOWN_NODE_ROLE. */
-function FallbackNode({ data }: TopologyNodeProps) {
+export function FallbackNode({ data }: TopologyNodeProps) {
   return (
     <>
       <TargetTop />
@@ -435,7 +466,7 @@ function FallbackNode({ data }: TopologyNodeProps) {
  * Built in topology-graph.tsx from layout zones. It is not a topology device
  * and is drawn below the edges (zIndex -1).
  */
-function FloorZoneNode({ data }: TopologyNodeProps) {
+export function FloorZoneNode({ data }: TopologyNodeProps) {
   return (
     <div
       className="pointer-events-none relative h-full w-full rounded-2xl border-2 border-dashed"
@@ -457,17 +488,3 @@ function FloorZoneNode({ data }: TopologyNodeProps) {
     </div>
   );
 }
-
-export const FLOOR_ZONE_NODE_TYPE = "floor_zone";
-
-export const topologyNodeTypes: NodeTypes = {
-  wan: WanNode,
-  gateway: GatewayNode,
-  firewall: FirewallNode,
-  controller: ControllerNode,
-  switch: SwitchNode,
-  access_point: AccessPointNode,
-  client_group: ClientGroupNode,
-  [FLOOR_ZONE_NODE_TYPE]: FloorZoneNode,
-  default: FallbackNode,
-};

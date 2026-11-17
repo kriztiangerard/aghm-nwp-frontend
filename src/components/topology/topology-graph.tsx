@@ -5,6 +5,7 @@ import {
   Controls,
   ControlButton,
   ReactFlow,
+  type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./topology-theme.css";
@@ -15,13 +16,15 @@ import { cn } from "@/lib/utils";
 import { toFlowGraph } from "./adapter";
 import { FloorClosetBreakdown } from "./floor-closet-breakdown";
 import type { PositionedFlowGraph } from "./layout";
+import { TopologyMarkerContext } from "./edge-markers";
 import {
-  TopologyEdgeMarkers,
-  TopologyMarkerContext,
+  FLOOR_ZONE_NODE_TYPE,
   topologyEdgeTypes,
-} from "./topology-edge";
+  topologyNodeTypes,
+} from "./flow-types";
+import { TopologyEdgeMarkers } from "./topology-edge";
 import { TopologyLegend } from "./topology-legend";
-import { topologyNodeTypes } from "./topology-nodes";
+import type { FlowNodeData } from "./types";
 import type { NetworkPlanData } from "@/components/comparison/types";
 
 interface TopologyGraphProps {
@@ -32,6 +35,28 @@ interface TopologyGraphProps {
 const INITIAL_MIN_ZOOM = 0.6;
 /** The expanded dialog has more room, so it can fit more before clamping. */
 const EXPANDED_MIN_ZOOM = 0.45;
+
+/**
+ * Floor zones become background nodes, drawn first and below the edges
+ * (zIndex -1). They exist only on the canvas; layout results and tests see
+ * them as `zones`, not as topology nodes.
+ */
+function toCanvasNodes(graph: PositionedFlowGraph): Node<FlowNodeData>[] {
+  const zoneNodes: Node<FlowNodeData>[] = graph.zones.map((zone) => ({
+    id: `zone-${zone.id}`,
+    type: FLOOR_ZONE_NODE_TYPE,
+    position: { x: zone.x, y: zone.y },
+    width: zone.width,
+    height: zone.height,
+    data: { role: FLOOR_ZONE_NODE_TYPE, label: zone.label },
+    zIndex: -1,
+    selectable: false,
+    draggable: false,
+    focusable: false,
+  }));
+
+  return [...zoneNodes, ...graph.nodes];
+}
 
 function TopologyCanvas({
   graph,
@@ -44,6 +69,7 @@ function TopologyCanvas({
 }) {
   // Unique per canvas: two plan panels and the expanded dialog can be mounted together.
   const markerPrefix = `topo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const canvasNodes = useMemo(() => toCanvasNodes(graph), [graph]);
 
   // Large plans are wider than the panel. Fitting the whole graph would
   // shrink the text below readable size, so the first view stops at a
@@ -65,7 +91,7 @@ function TopologyCanvas({
       >
         <TopologyEdgeMarkers prefix={markerPrefix} />
         <ReactFlow
-          nodes={graph.nodes}
+          nodes={canvasNodes}
           edges={graph.edges}
           nodeTypes={topologyNodeTypes}
           edgeTypes={topologyEdgeTypes}
@@ -99,6 +125,8 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
   const cacheKey = `${planData.generatedAt}:${planData.vendor}:${planData.tier}`;
   const [expanded, setExpanded] = useState(false);
 
+  // The per-floor split (revised AC5/AC10, AC11) happens inside layoutGraph,
+  // so it applies however the layout is called.
   const graph = useMemo(
     () =>
       toFlowGraph({
@@ -228,6 +256,7 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
                 <TopologyLegend
                   nodes={positionedGraph.nodes}
                   edges={positionedGraph.edges}
+                  hasFloorZones={positionedGraph.zones.length > 0}
                   className="max-h-48 overflow-y-auto border-t bg-card px-4 py-3"
                 />
               </Dialog.Popup>
@@ -243,6 +272,7 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
       <TopologyLegend
         nodes={positionedGraph.nodes}
         edges={positionedGraph.edges}
+        hasFloorZones={positionedGraph.zones.length > 0}
       />
 
       {positionedGraph.warnings.length > 0 && (
@@ -251,6 +281,8 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
         </p>
       )}
 
+      {/* The breakdown reads the plan-wide nodes from the adapter; the
+          per-floor split does not change its totals. */}
       <FloorClosetBreakdown nodes={graph.nodes} />
     </div>
   );

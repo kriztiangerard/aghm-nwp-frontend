@@ -1,11 +1,10 @@
-import { createContext, useContext } from "react";
+import { useContext } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
   type Edge,
   type EdgeProps,
-  type EdgeTypes,
 } from "@xyflow/react";
 
 import {
@@ -14,9 +13,9 @@ import {
   describeEdge,
   resolveEdgeVariant,
   showsDirection,
-  type EdgeVariant,
 } from "./edge-style";
-import { TOPOLOGY_EDGE_TYPE, type FlowEdgeData } from "./types";
+import { TopologyMarkerContext, markerId } from "./edge-markers";
+import type { FlowEdgeData } from "./types";
 
 /**
  * NWP-TOPO-003: one custom edge with label and style variants
@@ -26,12 +25,11 @@ import { TOPOLOGY_EDGE_TYPE, type FlowEdgeData } from "./types";
  * MarkerType, because built-in markers need a literal colour, and our
  * colours are CSS variables that change with the theme. Each canvas gets its
  * own id prefix, so the side-by-side plan panels and the expanded dialog
- * never share marker ids.
+ * never share marker ids (see edge-markers.ts).
+ *
+ * The edge registry lives in flow-types.ts, so this file exports only
+ * components (react-refresh/only-export-components).
  */
-export const TopologyMarkerContext = createContext("topology");
-
-export const markerId = (prefix: string, variant: EdgeVariant) =>
-  `${prefix}-arrow-${variant}`;
 
 export function TopologyEdgeMarkers({ prefix }: { prefix: string }) {
   return (
@@ -148,8 +146,3 @@ export function TopologyEdge({
     </>
   );
 }
-
-export const topologyEdgeTypes: EdgeTypes = {
-  [TOPOLOGY_EDGE_TYPE]: TopologyEdge,
-  default: TopologyEdge,
-};

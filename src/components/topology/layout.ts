@@ -1,7 +1,7 @@
 import dagre from '@dagrejs/dagre';
 import type { Node as FlowNode } from '@xyflow/react';
 import { SIDE_HANDLES } from './edge-routing';
-import { compareFloorIds } from './floor-grouping';
+import { compareFloorIds, groupByFloor } from './floor-grouping';
 import type {
   FlowNodeData,
   TopologyFlowEdge,
@@ -17,9 +17,13 @@ import type {
  * - Dimensions derived only from node data, with a fixed configuration.
  * - No random values or time-dependent calculations.
  *
+ * layoutGraph() first runs groupByFloor() (floor-grouping.ts), so
+ * multi-floor plans are split per floor before positioning.
+ *
  * Two layout paths, both deterministic:
  *
- * 1. Floor layout (plans grouped by floor; any node has `floorId`):
+ * 1. Structured layout (any plan with an Internet, gateway or core switch node).
+ *    Multi-floor plans look like this:
  *
  *      [Internet] → [Gateway] → [Core switch]            ← top row ("spine")
  *
@@ -29,13 +33,14 @@ import type {
  *                  │  Wi-Fi devices    │ │  Wi-Fi devices    │
  *                  └───────────────────┘ └───────────────────┘
  *
- *    Positions are computed directly. The structure is regular, so a fixed
- *    arrangement reads more predictably than dagre would, and zones never
- *    overlap. Zones are returned in `zones` for the canvas to draw.
+ *    Single-floor plans use the same arrangement with one device block and
+ *    no zone. Positions are computed directly. The structure is regular, so a
+ *    fixed arrangement reads more predictably than dagre would, and no device
+ *    edge passes behind the firewall or controller. Zones are returned in
+ *    `zones` for the canvas to draw.
  *
- * 2. Dagre layout (single floor, or no placements): the TOPO-002 dagre
- *    hierarchy, with the same top row drawn as one composite node that is
- *    split into its columns after layout.
+ * 2. Dagre layout: a fallback for graphs with no top-row node, using the
+ *    TOPO-002 dagre hierarchy.
  *
  * The cache is scoped by caller-provided plan identity and graph content.
  */
@@ -69,7 +74,6 @@ const FLOOR_LAYOUT = {
   rowGap: 64, // room for edge labels between rows
   nodeGap: 24,
   servicesGap: 48,
-  servicesStack: 24,
 };
 
 export interface TopologyZone {
@@ -161,6 +165,18 @@ function pillRowCount(texts: string[], available: number): number {
   return rows;
 }
 
+/** Product-name width estimate: 12 px semibold, rounded up so a name that
+ * might wrap always gets its second line (an extra line is harmless; a
+ * missing one would clip the name). */
+const estimateNameWidth = (text: string) => text.length * 7;
+
+/** Lines the product name takes: 1 or 2 (NAME_CLASS clamps at two). */
+function nameLineCount(data: FlowNodeData, width: number): number {
+  const name = data.name ?? data.label ?? '';
+  const available = width - CARD_METRICS.padX;
+  return Math.min(2, Math.max(1, Math.ceil(estimateNameWidth(name) / available)));
+}
+
 function hasDetailLine(data: FlowNodeData): boolean {
   return (
     data.role === 'firewall' ||
@@ -179,7 +195,9 @@ export function getNodeDimensions(node: TopologyFlowNode): {
     return { width, height: COMPACT_HEIGHT };
   }
 
-  const textLines = 2 + (node.data.sku ? 1 : 0);
+  // Role line + product name (1-2 lines) + SKU line.
+  const textLines =
+    1 + nameLineCount(node.data, width) + (node.data.sku ? 1 : 0);
   let height =
     CARD_METRICS.padY +
     CARD_METRICS.tile +
@@ -318,7 +336,22 @@ function placeSpine(
   }
 }
 
-// ---- Floor layout ----------------------------------------------------------------
+// ---- Structured layout (top row, services, device blocks) ---------------------
+//
+// Used for every plan that has a top row (Internet / gateway / core switch).
+// QA fix (TOPO-003 AC6): single-floor plans used dagre, which put the
+// controller in the row between the core switch and the access points, so
+// the PoE edge and its label ran behind the controller card. Now:
+// - the firewall and controller sit side by side directly under the gateway;
+// - every switch, access point and client group sits in a device block under
+//   the core switch, to the right of the services, so device edges never pass
+//   behind a services card;
+// - inside a block: access switches on the first row, access points and
+//   switch-fed client groups on the second, and AP-fed client groups (Wi-Fi
+//   devices) on the third, each directly under the access point it connects
+//   through.
+// Multi-floor plans get one block per floor, drawn as a labelled zone. Devices
+// without a floor share one block that has no zone.
 
 const ROW1_CLIENT_ORDER = ['wired_pcs', 'voip_phones', 'cameras', 'other_devices'];
 
@@ -328,127 +361,210 @@ function row1Order(node: TopologyFlowNode): number {
   return index >= 0 ? 1 + index : ROW1_CLIENT_ORDER.length + 1;
 }
 
-function floorLayout(
+const UNZONED = '__unzoned';
+const DEVICE_ROLES = new Set(['switch', 'access_point', 'client_group']);
+
+interface BlockDraft {
+  id: string;
+  label: string;
+  zoned: boolean;
+  width: number;
+  height: number;
+  local: Map<string, Point>;
+}
+
+function layoutBlock(
+  id: string,
+  label: string,
+  zoned: boolean,
+  members: TopologyFlowNode[],
+  feederAp: Map<string, string>,
+  dimensions: Map<string, Size>,
+  padTop: number,
+): BlockDraft {
+  const L = FLOOR_LAYOUT;
+  const padX = zoned ? L.zonePadX : 0;
+  const padBottom = zoned ? L.zonePadBottom : 0;
+  const width = (node: TopologyFlowNode) => dimensions.get(node.id)!.width;
+  const height = (node: TopologyFlowNode) => dimensions.get(node.id)!.height;
+
+  const rows: TopologyFlowNode[][] = [[], [], []];
+  for (const node of members) {
+    if (node.data.role === 'switch') rows[0].push(node);
+    else if (feederAp.has(node.id)) rows[2].push(node);
+    else rows[1].push(node);
+  }
+
+  rows[0].sort((a, b) => a.id.localeCompare(b.id));
+  rows[1].sort((a, b) => row1Order(a) - row1Order(b) || a.id.localeCompare(b.id));
+
+  const apOrder = new Map(
+    rows[1]
+      .filter((node) => node.data.role === 'access_point')
+      .map((node, index) => [node.id, index] as const),
+  );
+  rows[2].sort(
+    (a, b) =>
+      (apOrder.get(feederAp.get(a.id)!) ?? Number.MAX_SAFE_INTEGER) -
+        (apOrder.get(feederAp.get(b.id)!) ?? Number.MAX_SAFE_INTEGER) ||
+      row1Order(a) - row1Order(b) ||
+      a.id.localeCompare(b.id),
+  );
+
+  const rowWidth = (row: TopologyFlowNode[]) =>
+    row.reduce((sum, node) => sum + width(node), 0) +
+    L.nodeGap * Math.max(0, row.length - 1);
+  const rowHeight = (row: TopologyFlowNode[]) =>
+    Math.max(0, ...row.map(height));
+
+  const innerWidth = Math.max(1, ...rows.map(rowWidth));
+  const local = new Map<string, Point>();
+  let y = padTop;
+  let placedRows = 0;
+
+  rows.forEach((row, rowIndex) => {
+    if (row.length === 0) return;
+    if (placedRows > 0) y += L.rowGap;
+
+    const h = rowHeight(row);
+    const place = (node: TopologyFlowNode, x: number) =>
+      local.set(node.id, { x, y: y + (h - height(node)) / 2 });
+
+    if (rowIndex < 2) {
+      let x = padX + (innerWidth - rowWidth(row)) / 2;
+      for (const node of row) {
+        place(node, x);
+        x += width(node) + L.nodeGap;
+      }
+    } else {
+      // Each AP's clients are centred under that AP, swept left to right so
+      // they never overlap, then pulled back inside the block if needed.
+      const groups = new Map<string, TopologyFlowNode[]>();
+      for (const node of row) {
+        const key = feederAp.get(node.id)!;
+        groups.set(key, [...(groups.get(key) ?? []), node]);
+      }
+
+      const placed: { node: TopologyFlowNode; x: number }[] = [];
+      let cursor = padX;
+
+      for (const [apId, group] of groups) {
+        const apPoint = local.get(apId);
+        const apCenter = apPoint
+          ? apPoint.x + dimensions.get(apId)!.width / 2
+          : padX + innerWidth / 2;
+
+        let x = Math.max(cursor, apCenter - rowWidth(group) / 2);
+        for (const node of group) {
+          placed.push({ node, x });
+          x += width(node) + L.nodeGap;
+        }
+        cursor = x;
+      }
+
+      const last = placed[placed.length - 1];
+      const overflow = last.x + width(last.node) - (padX + innerWidth);
+      const shift = overflow > 0 ? Math.min(overflow, placed[0].x - padX) : 0;
+      for (const { node, x } of placed) place(node, x - shift);
+    }
+
+    y += h;
+    placedRows += 1;
+  });
+
+  return {
+    id,
+    label,
+    zoned,
+    width: innerWidth + 2 * padX,
+    height: y + padBottom,
+    local,
+  };
+}
+
+function structuredLayout(
   sortedNodes: TopologyFlowNode[],
+  sortedEdges: TopologyFlowEdge[],
   dimensions: Map<string, Size>,
   spine: Spine,
 ): { positions: Map<string, Point>; zones: TopologyZone[] } {
   const L = FLOOR_LAYOUT;
   const positions = new Map<string, Point>();
+  const nodeById = new Map(sortedNodes.map((node) => [node.id, node]));
 
-  // Group zone members by floor.
-  const floors = new Map<string, { label: string; members: TopologyFlowNode[] }>();
+  // Client groups reached through an access point (Wi-Fi devices) go under it.
+  const feederAp = new Map<string, string>();
+  for (const edge of sortedEdges) {
+    if (
+      nodeById.get(edge.source)?.data.role === 'access_point' &&
+      nodeById.get(edge.target)?.data.role === 'client_group' &&
+      !feederAp.has(edge.target)
+    ) {
+      feederAp.set(edge.target, edge.source);
+    }
+  }
+
+  const blocks = new Map<string, { label: string; members: TopologyFlowNode[] }>();
   const services: TopologyFlowNode[] = [];
 
   for (const node of sortedNodes) {
     if (spine.memberColumn.has(node.id)) continue;
 
-    const floorId = node.data.floorId;
-    if (floorId) {
-      const floor = floors.get(floorId) ?? {
-        label: node.data.floorLabel ?? floorId,
-        members: [],
-      };
-      floor.members.push(node);
-      floors.set(floorId, floor);
-    } else {
-      services.push(node);
+    if (!DEVICE_ROLES.has(node.data.role)) {
+      services.push(node); // firewall, controller, unknown roles
+      continue;
     }
+
+    const key = node.data.floorId ?? UNZONED;
+    const block = blocks.get(key) ?? {
+      label: node.data.floorLabel ?? key,
+      members: [],
+    };
+    block.members.push(node);
+    blocks.set(key, block);
   }
 
   services.sort(
     (a, b) =>
-      getNodeRank(a) - getNodeRank(b) ||
       (a.data.role === 'firewall' ? -1 : b.data.role === 'firewall' ? 1 : 0) ||
+      getNodeRank(a) - getNodeRank(b) ||
       a.id.localeCompare(b.id),
   );
 
-  // Lay out each zone in local coordinates (origin = zone top-left).
-  const zoneDrafts = [...floors.entries()]
-    .sort(([a], [b]) => compareFloorIds(a, b))
-    .map(([floorId, floor]) => {
-      const rows: TopologyFlowNode[][] = [[], [], []];
+  // When any floor zone exists, every block and the services start below the
+  // zone label band, so the first rows line up across the page.
+  const anyZoned = [...blocks.keys()].some((key) => key !== UNZONED);
+  const contentTop = anyZoned ? L.zonePadTop : 0;
 
-      for (const node of floor.members) {
-        if (node.data.role === 'switch') rows[0].push(node);
-        else if (node.data.clientKind === 'wifi_devices') rows[2].push(node);
-        else rows[1].push(node);
-      }
+  const drafts = [...blocks.entries()]
+    .sort(([a], [b]) =>
+      a === UNZONED ? -1 : b === UNZONED ? 1 : compareFloorIds(a, b),
+    )
+    .map(([key, block]) =>
+      layoutBlock(
+        key,
+        block.label,
+        key !== UNZONED,
+        block.members,
+        feederAp,
+        dimensions,
+        contentTop,
+      ),
+    );
 
-      rows[1].sort((a, b) => row1Order(a) - row1Order(b) || a.id.localeCompare(b.id));
-
-      const rowWidth = (row: TopologyFlowNode[]) =>
-        row.reduce((sum, node) => sum + dimensions.get(node.id)!.width, 0) +
-        L.nodeGap * Math.max(0, row.length - 1);
-      const rowHeight = (row: TopologyFlowNode[]) =>
-        Math.max(0, ...row.map((node) => dimensions.get(node.id)!.height));
-
-      const innerWidth = Math.max(...rows.map(rowWidth), 1);
-      const local = new Map<string, Point>();
-      let y = L.zonePadTop;
-      let placedRows = 0;
-
-      rows.forEach((row, rowIndex) => {
-        if (row.length === 0) return;
-        if (placedRows > 0) y += L.rowGap;
-
-        const height = rowHeight(row);
-
-        if (rowIndex === 2) {
-          // Wi-Fi devices sit under the access point they connect through.
-          const ap = rows[1].find((node) => node.data.role === 'access_point');
-          const apPos = ap ? local.get(ap.id) : undefined;
-          const apCenter = ap && apPos
-            ? apPos.x + dimensions.get(ap.id)!.width / 2
-            : L.zonePadX + innerWidth / 2;
-
-          let x = apCenter - rowWidth(row) / 2;
-          x = Math.max(L.zonePadX, Math.min(x, L.zonePadX + innerWidth - rowWidth(row)));
-
-          for (const node of row) {
-            const size = dimensions.get(node.id)!;
-            local.set(node.id, { x, y: y + (height - size.height) / 2 });
-            x += size.width + L.nodeGap;
-          }
-        } else {
-          let x = L.zonePadX + (innerWidth - rowWidth(row)) / 2;
-
-          for (const node of row) {
-            const size = dimensions.get(node.id)!;
-            local.set(node.id, { x, y: y + (height - size.height) / 2 });
-            x += size.width + L.nodeGap;
-          }
-        }
-
-        y += height;
-        placedRows += 1;
-      });
-
-      return {
-        id: floorId,
-        label: floor.label,
-        width: innerWidth + 2 * L.zonePadX,
-        height: y + L.zonePadBottom,
-        local,
-      };
-    });
-
-  // Services block: firewall, controller and anything without a floor, side
-  // by side, so every link from the gateway drops straight into its own card
-  // and never passes through a sibling.
   const servicesWidth =
     services.reduce((sum, node) => sum + dimensions.get(node.id)!.width, 0) +
     L.nodeGap * Math.max(0, services.length - 1);
 
   const rowWidth =
     (services.length > 0 ? servicesWidth + L.servicesGap : 0) +
-    zoneDrafts.reduce((sum, zone) => sum + zone.width, 0) +
-    L.zoneGap * Math.max(0, zoneDrafts.length - 1);
+    drafts.reduce((sum, block) => sum + block.width, 0) +
+    L.zoneGap * Math.max(0, drafts.length - 1);
 
   // Horizontal alignment. With a services block, the gateway sits directly
-  // above it and the core switch above the zones, so the gateway's links and
-  // the core's links never share a horizontal run. Without one, both rows are
-  // centred.
+  // above it and the core switch above the device blocks, so the gateway's
+  // links and the core's links never share a horizontal run. Without one,
+  // both rows are centred.
   let spineLeft: number;
   let rowLeft: number;
 
@@ -474,44 +590,36 @@ function floorLayout(
     rowLeft = L.margin + (overallWidth - rowWidth) / 2;
   }
 
-  // Top row.
-  placeSpine(
-    spine,
-    spineLeft,
-    L.margin + spine.height / 2,
-    dimensions,
-    positions,
-  );
+  placeSpine(spine, spineLeft, L.margin + spine.height / 2, dimensions, positions);
 
   const rowTop = L.margin + spine.height + L.spineToRow;
   let x = rowLeft;
 
-  // Services block, aligned with the switch row inside the zones.
   if (services.length > 0) {
     let serviceX = x;
     for (const node of services) {
-      const size = dimensions.get(node.id)!;
-      positions.set(node.id, { x: serviceX, y: rowTop + L.zonePadTop });
-      serviceX += size.width + L.nodeGap;
+      positions.set(node.id, { x: serviceX, y: rowTop + contentTop });
+      serviceX += dimensions.get(node.id)!.width + L.nodeGap;
     }
     x += servicesWidth + L.servicesGap;
   }
 
-  // Zones, left to right by floor.
   const zones: TopologyZone[] = [];
-  for (const zone of zoneDrafts) {
-    for (const [id, point] of zone.local) {
+  for (const block of drafts) {
+    for (const [id, point] of block.local) {
       positions.set(id, { x: x + point.x, y: rowTop + point.y });
     }
-    zones.push({
-      id: zone.id,
-      label: zone.label,
-      x,
-      y: rowTop,
-      width: zone.width,
-      height: zone.height,
-    });
-    x += zone.width + L.zoneGap;
+    if (block.zoned) {
+      zones.push({
+        id: block.id,
+        label: block.label,
+        x,
+        y: rowTop,
+        width: block.width,
+        height: block.height,
+      });
+    }
+    x += block.width + L.zoneGap;
   }
 
   return { positions, zones };
@@ -730,13 +838,21 @@ export function layoutGraph(
     }
   }
 
-  const sortedNodes = [...graph.nodes].sort(
+  // TOPO-003 (revised AC5/AC10, AC11): split APs and client groups per floor
+  // here, so every caller of the layout gets the per-floor graph and zones,
+  // whichever component renders the canvas. No-op for single-floor graphs and
+  // for graphs that are already grouped.
+  const grouped = groupByFloor({ status: 'available', ...graph });
+  const input: LayoutInput =
+    grouped.status === 'available' ? grouped : graph;
+
+  const sortedNodes = [...input.nodes].sort(
     (a, b) =>
       getNodeRank(a) - getNodeRank(b) ||
       a.id.localeCompare(b.id),
   );
 
-  const sortedEdges = [...graph.edges].sort(
+  const sortedEdges = [...input.edges].sort(
     (a, b) =>
       a.id.localeCompare(b.id) ||
       a.source.localeCompare(b.source) ||
@@ -748,14 +864,19 @@ export function layoutGraph(
   );
 
   const spine = buildSpine(sortedNodes, dimensions);
-  const useFloorLayout = sortedNodes.some((node) => Boolean(node.data.floorId));
 
   let positions: Map<string, Point>;
   let zones: TopologyZone[] = [];
 
-  if (useFloorLayout) {
-    ({ positions, zones } = floorLayout(sortedNodes, dimensions, spine));
+  if (spine.columns.length > 0) {
+    ({ positions, zones } = structuredLayout(
+      sortedNodes,
+      sortedEdges,
+      dimensions,
+      spine,
+    ));
   } else {
+    // No Internet, gateway or core switch: fall back to the dagre hierarchy.
     positions = dagreLayout(sortedNodes, sortedEdges, dimensions, spine);
   }
 
@@ -800,7 +921,7 @@ export function layoutGraph(
     nodes,
     edges,
     zones,
-    warnings: [...graph.warnings],
+    warnings: [...input.warnings],
   };
 
   if (key) {

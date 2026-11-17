@@ -30,6 +30,10 @@ import {
  * AC10 change note for the ENGINE-016 follow-up that would make them agree.
  *
  * Single-floor plans, and plans without placements, are returned unchanged.
+ * Idempotent: a graph that already has floor-tagged nodes is returned as is,
+ * so calling it more than once is safe. layoutGraph() calls it, so every
+ * caller of the layout (TopologyGraph, the layout worker, QA pages) gets the
+ * per-floor graph.
  * Pure function, deterministic for a given input.
  */
 
@@ -80,13 +84,17 @@ function makeEdge(
   data: FlowEdgeData,
   count?: number,
 ): TopologyFlowEdge {
-  const { count: _ignored, ...rest } = data;
+  // The template's count belongs to the plan-wide edge; set or drop it here.
+  const edgeData: FlowEdgeData = { ...data };
+  if (count !== undefined) edgeData.count = count;
+  else delete edgeData.count;
+
   return {
     id: `edge-${source}--${target}`,
     source,
     target,
     type: TOPOLOGY_EDGE_TYPE,
-    data: count !== undefined ? { ...rest, count } : rest,
+    data: edgeData,
   };
 }
 
@@ -94,6 +102,9 @@ export function groupByFloor(graph: FlowGraphResult): FlowGraphResult {
   if (graph.status !== 'available') return graph;
 
   const { nodes, edges } = graph;
+
+  // Already grouped (or tagged by an upstream step): nothing to do.
+  if (nodes.some((node) => node.data.floorId)) return graph;
 
   const floorIds = new Set<string>();
   for (const node of nodes) {

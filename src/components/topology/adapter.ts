@@ -41,6 +41,65 @@ const BOM_CATEGORY_BY_ROLE: Partial<
 };
 
 /**
+ * QA fix (TOPO-003 AC1): the frontend BOM uses display categories
+ * ("Access Point", "Gateway"), while the engine uses `access_point`,
+ * `gateway`. Compare a normalised form, so both match.
+ */
+const normaliseCategory = (value: unknown): string =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+/**
+ * Role and category words. They describe what a device is, not which product
+ * it is, so they are never shown as the product name (QA: the gateway card
+ * read "Gateway" twice).
+ */
+const GENERIC_NAMES = new Set([
+  'gateway',
+  'router',
+  'firewall',
+  'controller',
+  'switch',
+  'network switch',
+  'core switch',
+  'access switch',
+  'access point',
+  'access points',
+  'ap',
+  'aps',
+  'internet',
+  'wan',
+]);
+
+const isGenericName = (value?: string | null): boolean =>
+  !value ||
+  GENERIC_NAMES.has(
+    value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' '),
+  );
+
+type PlanBomLine = TopologyPlan['bom'][number];
+
+/** Same SKU and category first; otherwise the first line with the same SKU. */
+function findBomLine(
+  bom: TopologyPlan['bom'],
+  category: string | undefined,
+  sku: string | undefined,
+): PlanBomLine | undefined {
+  if (!sku) return undefined;
+
+  const sameSku = bom.filter((line) => line.sku === sku);
+  if (sameSku.length === 0) return undefined;
+
+  return (
+    (category
+      ? sameSku.find((line) => normaliseCategory(line.category) === category)
+      : undefined) ?? sameSku[0]
+  );
+}
+
+/**
  * Converts ENGINE-016's logical topology into a position-independent
  * React Flow graph. TOPO-002 is responsible for adding node positions.
  *
@@ -52,6 +111,10 @@ const BOM_CATEGORY_BY_ROLE: Partial<
  * - The gateway → firewall edge is marked `integrated`.
  * - The management edge (controller → gateway in the payload) is drawn from
  *   the gateway down to the controller, without an arrowhead.
+ *
+ * - The product name is the first non-generic value of: the matching BOM
+ *   line's name, then the engine label. If both are generic, the SKU is shown
+ *   as the name and PRODUCT_NAME_MISSING is raised (QA AC1).
  *
  * Only whitelisted fields are copied into node data, so no IP address,
  * VLAN, port mapping or rack position can reach the canvas (TOPO-003 AC9).
@@ -92,19 +155,31 @@ export function toFlowGraph(plan: TopologyPlan): FlowGraphResult {
         node.role as TopologyRole
       ];
 
-      const bomLine =
-        bomCategory && node.sku
-          ? plan.bom.find(
-              (line) =>
-                line.category === bomCategory && line.sku === node.sku,
-            )
-          : undefined;
+      const bomLine = bomCategory
+        ? findBomLine(plan.bom, bomCategory, node.sku)
+        : undefined;
 
       if (bomCategory && !bomLine) {
         warnings.push({
           code: 'BOM_LINE_NOT_FOUND',
           message: `No matching BOM line found for node "${node.id}" (category: ${bomCategory}, SKU: ${node.sku ?? 'missing'}).`,
         });
+      }
+
+      // Device roles with a SKU get a real product name, never a role word.
+      let productName: string | undefined;
+      if (bomCategory && node.sku) {
+        productName = [bomLine?.name, node.label].find(
+          (candidate) => !isGenericName(candidate),
+        );
+
+        if (!productName) {
+          productName = node.sku;
+          warnings.push({
+            code: 'PRODUCT_NAME_MISSING',
+            message: `Node "${node.id}" has no product name in the BOM or payload (only "${bomLine?.name ?? node.label}"); its SKU is shown instead.`,
+          });
+        }
       }
 
       return {
@@ -114,7 +189,7 @@ export function toFlowGraph(plan: TopologyPlan): FlowGraphResult {
           role: node.role,
           label: node.label,
           ...(node.sku !== undefined ? { sku: node.sku } : {}),
-          ...(bomLine ? { name: bomLine.name } : {}),
+          ...(productName !== undefined ? { name: productName } : {}),
           ...(node.qty !== undefined ? { qty: node.qty } : {}),
           ...(node.status !== undefined ? { status: node.status } : {}),
           ...(node.layer !== undefined ? { layer: node.layer } : {}),
