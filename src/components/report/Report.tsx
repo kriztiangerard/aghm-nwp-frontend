@@ -1,14 +1,16 @@
-import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
 import TopologyDiagram from "./TopologyDiagram";
+import InstallationMaterialsSummary from "./InstallationMaterialsSummary";
+import BomTable from "./BomTable";
+import BomStatusLegend from "./BomStatusLegend";
 import {
   buildReport,
   type ReportBomLine,
 } from "@/lib/report/report-view-model";
-import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
-import { getDisclaimerBlock } from "@/lib/disclaimers";
+import { bomToCsv, downloadCsv } from "@/lib/buildBomCsv";
+import { safeFileName } from "@/lib/fileName";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
 
@@ -17,126 +19,7 @@ function toBackendVendor(vendor: string): string {
   return vendor;
 }
 
-function formatMoney(value: number | null, currency: string): string {
-  if (value === null || !Number.isFinite(value)) return "Price on request";
 
-  return `${currency} ${value.toLocaleString("en-PH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function safeFileName(value: string): string {
-  return value
-    .trim()
-    .replace(/[^a-z0-9-_]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase() || "network-plan";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function InstallationMaterials({
-  materials,
-}: {
-  materials: Record<string, unknown> | null;
-}) {
-  if (!materials) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No installation materials summary was provided for this plan.
-      </p>
-    );
-  }
-
-  const items = Array.isArray(materials.items)
-    ? materials.items.filter(isRecord)
-    : [];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-        {typeof materials.asOfDate === "string" && (
-          <span>Pricing date: {materials.asOfDate}</span>
-        )}
-        {typeof materials.pricingBasis === "string" && (
-          <span>Basis: {materials.pricingBasis}</span>
-        )}
-      </div>
-
-      {items.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Material</th>
-                <th className="p-3">Description</th>
-                <th className="p-3">Unit</th>
-                <th className="p-3">Representative price</th>
-                <th className="p-3">Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr
-                  key={`${String(item.item ?? "material")}-${index}`}
-                  className="border-t"
-                >
-                  <td className="p-3 font-medium">
-                    {String(item.item ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(item.description ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(item.unit ?? "—")}
-                  </td>
-                  <td className="p-3">
-                    {String(
-                      item.priceDisplay ??
-                        (item.representativeUnitPrice != null
-                          ? item.representativeUnitPrice
-                          : "Not specified"),
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {typeof item.sourceUrl === "string" &&
-                    item.sourceUrl.startsWith("https://") ? (
-                      <a
-                        href={item.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline underline-offset-4"
-                      >
-                        View source
-                      </a>
-                    ) : typeof item.priceReference === "string" ? (
-                      item.priceReference
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No individual installation material items were provided.
-        </p>
-      )}
-
-      {typeof materials.note === "string" && (
-        <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-          {materials.note}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function HardwareList({ lines }: { lines: ReportBomLine[] }) {
   if (lines.length === 0) {
@@ -178,7 +61,6 @@ function HardwareList({ lines }: { lines: ReportBomLine[] }) {
 }
 
 export default function Report() {
-  const [isCsvPreviewOpen, setIsCsvPreviewOpen] = useState(false);
   const navigate = useNavigate();
   const { result } = usePlanResult();
   const { choice, plan } = useSelectedPlan();
@@ -232,22 +114,14 @@ export default function Report() {
     return <Navigate to="/comparison" replace />;
   }
 
-  const disclaimer = getDisclaimerBlock(result.engineResult.generatedAt);
 
-  const handleCsvPreview = () => {
-  setIsCsvPreviewOpen(true);
-};
 
 const handleCsvDownload = () => {
-  const csv = buildBomCsv(
-    backendPlan.bom,
-    result.engineResult.generatedAt,
-  );
+  const csv = bomToCsv(report);
 
   const fileName = `${safeFileName(report.project.companyName)}-${backendPlanType}-bom.csv`;
 
   downloadCsv(csv, fileName);
-  setIsCsvPreviewOpen(false);
 };
 
   // Interim PDF action: browser print dialog supports Save as PDF.
@@ -358,68 +232,11 @@ const handleCsvDownload = () => {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Network Equipment BOM</h2>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Category / SKU</th>
-                <th className="p-3">Device</th>
-                <th className="p-3">Vendor</th>
-                <th className="p-3 text-right">Qty</th>
-                <th className="p-3 text-right">Unit price</th>
-                <th className="p-3 text-right">Line total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.bom.lines.map((line, index) => (
-                <tr
-                  key={`${line.sku}-${index}`}
-                  className="border-t"
-                >
-                  <td className="p-3">
-                    <div>{line.category}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {line.sku}
-                    </div>
-                  </td>
-                  <td className="p-3">{line.name}</td>
-                  <td className="p-3">{line.vendor}</td>
-                  <td className="p-3 text-right">{line.qty}</td>
-                  <td className="p-3 text-right">
-                    {formatMoney(line.unitPrice, report.bom.currency)}
-                  </td>
-                  <td className="p-3 text-right">
-                    {formatMoney(line.lineTotal, report.bom.currency)}
-                  </td>
-                </tr>
-              ))}
-              {report.bom.lines.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-4 text-center text-muted-foreground">
-                    No BOM line items were provided.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot className="border-t bg-muted/50">
-              <tr>
-                <td colSpan={5} className="p-3 text-right font-semibold">
-                  {report.bom.totalIsPartial ? "Total (partial)" : "Total"}
-                </td>
-                <td className="p-3 text-right font-semibold">
-                  {formatMoney(report.bom.total, report.bom.currency)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Network Equipment BOM</h2>
+          <BomStatusLegend />
         </div>
-        {report.bom.totalIsPartial && (
-          <p className="text-sm text-muted-foreground">
-            Some equipment prices are unavailable. The displayed total
-            includes priced items only.
-          </p>
-        )}
+        <BomTable bom={report.bom} />
       </section>
 
       <section className="space-y-4">
@@ -427,7 +244,7 @@ const handleCsvDownload = () => {
           Installation Materials Summary
         </h2>
         <div className="rounded-xl border p-4">
-          <InstallationMaterials materials={report.installationMaterials} />
+          <InstallationMaterialsSummary materials={report.installationMaterials} />
         </div>
       </section>
 
@@ -490,139 +307,13 @@ const handleCsvDownload = () => {
 
           <button
             type="button"
-            onClick={handleCsvPreview}
+            onClick={handleCsvDownload}
             className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             Download BOM (CSV)
           </button>
         </div>
       </section>
-      {isCsvPreviewOpen && (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:hidden"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        setIsCsvPreviewOpen(false);
-      }
-    }}
-  >
-    <section
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="csv-preview-title"
-      className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-background p-6 shadow-xl"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 id="csv-preview-title" className="text-xl font-bold">
-            BOM CSV Preview
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review the contents before downloading your CSV file.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCsvPreviewOpen(false)}
-          className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="mt-5 space-y-3 rounded-lg border p-4">
-        <h3 className="font-semibold">{disclaimer.title}</h3>
-        <p className="text-sm text-muted-foreground">
-          {disclaimer.generatedAtLine}
-        </p>
-
-        {disclaimer.paragraphs.map((paragraph, index) => (
-          <p
-            key={index}
-            className="text-sm leading-relaxed text-muted-foreground"
-          >
-            {paragraph}
-          </p>
-        ))}
-      </div>
-
-      <div className="mt-5 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-muted">
-            <tr>
-              {[
-                "Category",
-                "SKU",
-                "Device",
-                "Vendor",
-                "Qty",
-                `Unit price (${backendPlan.bom.currency})`,
-                `Line total (${backendPlan.bom.currency})`,
-                "Status",
-              ].map((heading) => (
-                <th key={heading} className="px-4 py-3 font-semibold">
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {backendPlan.bom.lines.map((line, index) => (
-              <tr key={`${line.sku}-${index}`} className="border-t">
-                <td className="px-4 py-3">{line.category}</td>
-                <td className="px-4 py-3">{line.sku}</td>
-                <td className="px-4 py-3">{line.name}</td>
-                <td className="px-4 py-3">{line.vendor}</td>
-                <td className="px-4 py-3">{line.qty}</td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.unitPrice, backendPlan.bom.currency)}
-                </td>
-                <td className="px-4 py-3">
-                  {formatMoney(line.lineTotal, backendPlan.bom.currency)}
-                </td>
-                <td className="px-4 py-3">{line.status}</td>
-              </tr>
-            ))}
-          </tbody>
-
-          <tfoot className="border-t bg-muted/50">
-            <tr>
-              <td colSpan={5} className="px-4 py-3 text-right font-semibold">
-                {backendPlan.bom.totalIsPartial
-                  ? "Total (partial)"
-                  : "Total"}
-              </td>
-              <td className="px-4 py-3 font-bold">
-                {formatMoney(backendPlan.bom.total, backendPlan.bom.currency)}
-              </td>
-              <td colSpan={2}></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div className="mt-6 flex flex-wrap justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => setIsCsvPreviewOpen(false)}
-          className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={handleCsvDownload}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          Download CSV
-        </button>
-      </div>
-    </section>
-  </div>
-)}
     </main>
   );
 }

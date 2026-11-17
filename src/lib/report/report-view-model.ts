@@ -39,6 +39,7 @@ export interface ReportBomLine {
   priceSource?: 'synchronized' | 'manual'
   isStale?: boolean
   priceUpdatedAt?: string
+  priceReferences?: string[]
 }
 
 export interface ReportAssumption {
@@ -85,6 +86,7 @@ interface EngineBomLine {
   priceSource?: 'synchronized' | 'manual'
   isStale?: boolean
   priceUpdatedAt?: string
+  priceReferences?: string[]
 }
 
 interface EnginePlan {
