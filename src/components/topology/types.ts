@@ -98,7 +98,18 @@ export interface FlowNodeData extends Record<string, unknown> {
   count?: number | null;
   clientKind?: string;
   placements?: TopologyPlacement[];
-  snapshotHandles?: TopologySnapshotHandle[];
+    snapshotHandles?: TopologySnapshotHandle[];
+
+  /**
+   * TOPO-003 floor zone assigned when the plan spans two or more floors.
+   */
+  floorId?: string;
+  floorLabel?: string;
+
+  /**
+   * Plan-wide AP quantity or client count before the per-floor split.
+   */
+  planTotal?: number;
 }
 
 /**
@@ -106,7 +117,30 @@ export interface FlowNodeData extends Record<string, unknown> {
  * TOPO-002 owns positioning and converts these into positioned nodes.
  */
 export type TopologyFlowNode = Omit<Node<FlowNodeData>, 'position'>;
-export type TopologyFlowEdge = Edge;
+
+/**
+ * TOPO-003: every topology edge renders through one custom edge component.
+ * The payload's link type moves into `data.linkType`.
+ */
+export const TOPOLOGY_EDGE_TYPE = 'topology' as const;
+
+export interface FlowEdgeData extends Record<string, unknown> {
+  /** ENGINE-016 edge `type` as sent (wan, uplink, poe, access, management). */
+  linkType: string;
+  medium?: TopologyMedium;
+  /** Number of device connections carried by this logical link. */
+  count?: number;
+  /** True for the gateway → firewall link (firewall built into the gateway). */
+  integrated?: boolean;
+  /**
+   * True when source/target were swapped for drawing. Only the management
+   * edge is swapped (payload: controller → gateway). It is drawn without an
+   * arrowhead, so no direction is implied.
+   */
+  drawnReversed?: boolean;
+}
+
+export type TopologyFlowEdge = Edge<FlowEdgeData>;
 
 export type FlowGraphResult =
   | {

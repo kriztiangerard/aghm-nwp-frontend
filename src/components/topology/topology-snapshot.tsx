@@ -633,10 +633,10 @@ export async function createTopologySnapshot(
       return {
         ...edge,
         type: isCoreUplink
-          ? "snapshotCoreUplink"
-          : isAPRow2Edge
-            ? "snapshotAPRow2"
-            : edge.type,
+        ? "snapshotCoreUplink"
+        : isAPRow2Edge
+        ? "snapshotAPRow2"
+        : (edge.data?.linkType ?? edge.type),
         style: {
           ...edge.style,
           stroke: "#8b8490",
