@@ -74,6 +74,11 @@ const FLOOR_LAYOUT = {
   rowGap: 64, // room for edge labels between rows
   nodeGap: 24,
   servicesGap: 48,
+  /**
+   * QA round 2 (AC6): clear lane between a stacked core column and the device
+   * blocks, for the edges that leave the core units from their right side.
+   */
+  coreLane: 48,
 };
 
 export interface TopologyZone {
@@ -334,6 +339,17 @@ function placeSpine(
 
     columnLeft += column.width + SPINE_COLUMN_GAP;
   }
+}
+
+/**
+ * True when the top row holds two or more core switch units (one SKU with
+ * qty > 1, or a redundant core pair). They are stacked in the core column, so
+ * their links down to the device blocks leave from the right side.
+ */
+function hasStackedCore(spine: Spine): boolean {
+  return (
+    (spine.columns.find((column) => column.index === 2)?.members.length ?? 0) > 1
+  );
 }
 
 // ---- Structured layout (top row, services, device blocks) ---------------------
@@ -602,6 +618,21 @@ function structuredLayout(
       serviceX += dimensions.get(node.id)!.width + L.nodeGap;
     }
     x += servicesWidth + L.servicesGap;
+  }
+
+  // QA round 2 (AC6 / TC-006): with two or more core units stacked in the top
+  // row, an edge dropping from the upper unit's bottom passed behind the lower
+  // unit. Such units now send their device edges from their right side (see
+  // hasStackedCore), so the device blocks start right of the core column.
+  if (hasStackedCore(spine) && drafts.length > 0) {
+    const coreRight = Math.max(
+      ...spine.columns
+        .find((column) => column.index === 2)!
+        .members.map(
+          (node) => positions.get(node.id)!.x + dimensions.get(node.id)!.width,
+        ),
+    );
+    x = Math.max(x, coreRight + L.coreLane);
   }
 
   const zones: TopologyZone[] = [];
@@ -890,10 +921,19 @@ export function layoutGraph(
     };
   });
 
+  const stackedCore = spine.columns.length > 0 && hasStackedCore(spine);
+
   // Top-row edges run horizontally between the facing sides of the columns.
   const edges: TopologyFlowEdge[] = sortedEdges.map((edge) => {
     const sourceColumn = spine.memberColumn.get(edge.source);
     const targetColumn = spine.memberColumn.get(edge.target);
+
+    // Stacked core units: links to devices leave from the right side and drop
+    // into the device blocks, which start right of the core column, so they
+    // never pass behind the unit below (QA round 2, AC6).
+    if (stackedCore && sourceColumn === 2 && targetColumn === undefined) {
+      return { ...edge, sourceHandle: SIDE_HANDLES.sourceRight };
+    }
 
     if (
       sourceColumn === undefined ||

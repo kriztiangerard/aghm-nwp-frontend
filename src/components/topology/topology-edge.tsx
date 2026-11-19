@@ -3,6 +3,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  Position,
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
@@ -77,7 +78,7 @@ export function TopologyEdge({
   const style = EDGE_VARIANT_STYLES[variant];
   const label = describeEdge(data);
 
-  const [path, labelX, labelY] = getSmoothStepPath({
+  const [path, centerX, centerY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -86,6 +87,15 @@ export function TopologyEdge({
     targetPosition,
     borderRadius: 10,
   });
+
+  // An edge from a right-side handle down into a card's top is L-shaped, and
+  // the default label point (midway between the ends) floats off the line.
+  // Pin it to the middle of the vertical run instead (QA round 2: stacked core
+  // switches route their device links this way).
+  const lShaped =
+    sourcePosition === Position.Right && targetPosition === Position.Top;
+  const labelX = lShaped ? targetX : centerX;
+  const labelY = lShaped ? (sourceY + targetY) / 2 : centerY;
 
   const marker = showsDirection(data)
     ? `url(#${markerId(prefix, variant)})`

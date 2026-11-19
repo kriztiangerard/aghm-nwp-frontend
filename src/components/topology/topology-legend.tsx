@@ -24,6 +24,8 @@ import type { FlowNodeData, TopologyFlowEdge } from "./types";
 interface TopologyLegendProps {
   nodes: Node<FlowNodeData>[];
   edges: TopologyFlowEdge[];
+  /** TOPO-003: the layout drew floor zones (multi-floor plan). */
+  hasFloorZones?: boolean;
   className?: string;
 }
 
@@ -69,9 +71,16 @@ function EdgeSwatch({ variant }: { variant: EdgeVariant }) {
 export function TopologyLegend({
   nodes,
   edges,
+  hasFloorZones = false,
   className,
 }: TopologyLegendProps) {
-  const { variants, hasIntegrated, hasSunsetting, hasManagement } =
+  const {
+    variants,
+    hasIntegrated,
+    hasSunsetting,
+    hasManagement,
+    fiberOnlyBackbone,
+  } =
     useMemo(() => {
       const present = new Set(
         edges.map((edge) => resolveEdgeVariant(edge.data)),
@@ -91,10 +100,22 @@ export function TopologyLegend({
         hasManagement: edges.some(
           (edge) => edge.data?.linkType === "management",
         ),
+        // "Fiber backbone" is only accurate when every fiber edge is a
+        // switch uplink. A payload may also mark other links as fiber (for
+        // example a fiber internet service), so the entry is then worded
+        // generally.
+        fiberOnlyBackbone: edges
+          .filter((edge) => resolveEdgeVariant(edge.data) === "fiber")
+          .every((edge) => edge.data?.linkType === "uplink"),
       };
     }, [nodes, edges]);
 
-  if (variants.length === 0 && !hasIntegrated && !hasSunsetting) {
+  if (
+    variants.length === 0 &&
+    !hasIntegrated &&
+    !hasSunsetting &&
+    !hasFloorZones
+  ) {
     return null;
   }
 
@@ -119,11 +140,16 @@ export function TopologyLegend({
               </span>
               <span>
                 <span className="font-medium">
-                  {EDGE_VARIANT_STYLES[variant].legendLabel}
+                  {variant === "fiber" && !fiberOnlyBackbone
+                    ? "Fiber link"
+                    : EDGE_VARIANT_STYLES[variant].legendLabel}
                 </span>
                 <span className="text-muted-foreground">
                   {" "}
-                  — {EDGE_VARIANT_STYLES[variant].legendDescription}
+                  —{" "}
+                  {variant === "fiber" && !fiberOnlyBackbone
+                    ? "A fiber connection (for example a switch backbone or a fiber internet service). Drawn as a thick double line; copper links are thin single lines."
+                    : EDGE_VARIANT_STYLES[variant].legendDescription}
                 </span>
               </span>
             </li>
@@ -139,6 +165,30 @@ export function TopologyLegend({
         on that link.
       </p>
 
+      {hasFloorZones && (
+        <div
+          className="mt-2 flex items-start gap-2 text-xs"
+          data-testid="topology-legend-floor-zone"
+        >
+          <span
+            aria-hidden="true"
+            className="mt-0.5 h-3 w-11 shrink-0 rounded-sm border-2 border-dashed"
+            style={{
+              borderColor: "var(--topo-zone-border)",
+              backgroundColor: "var(--topo-zone-bg)",
+            }}
+          />
+          <span>
+            <span className="font-medium">Floor zone</span>
+            <span className="text-muted-foreground">
+              {" "}
+              — the switches, access points and devices that serve one floor.
+              Counts per floor are planning estimates, not a site survey.
+            </span>
+          </span>
+        </div>
+      )}
+
       {(hasIntegrated || hasSunsetting) && (
         <ul className="mt-2 space-y-1.5">
           {hasIntegrated && (
@@ -152,7 +202,7 @@ export function TopologyLegend({
           )}
           {hasSunsetting && (
             <li className="flex flex-wrap items-center gap-2 text-xs">
-              <SunsettingBadge />
+              <SunsettingBadge className="h-5 w-auto whitespace-nowrap py-0" />
               <span className="text-muted-foreground">
                 Being phased out by the vendor; confirm availability with a
                 distributor.

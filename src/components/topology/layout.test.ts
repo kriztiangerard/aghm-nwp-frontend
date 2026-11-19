@@ -72,6 +72,13 @@ function centerY(node: {
   return node.position.y + (node.height ?? 0) / 2;
 }
 
+function centerX(node: {
+  position: { x: number; y: number };
+  width?: number;
+}) {
+  return node.position.x + (node.width ?? 0) / 2;
+}
+
 describe('TOPO-002 deterministic topology layout', () => {
   it('AC1: assigns finite coordinates and prevents node overlap', () => {
     const result = layoutGraph(makeGraph());
@@ -151,7 +158,10 @@ describe('TOPO-002 deterministic topology layout', () => {
     );
   });
 
-  it('AC3: places topology roles in the required top-to-bottom hierarchy', () => {
+  // AC3 as revised with NWP-TOPO-003: Internet, gateway and core switch share
+  // the top row in data-path order (left to right); every other layer sits
+  // below them, top to bottom.
+  it('AC3: places the top row left to right and other layers below', () => {
     const result = layoutGraph(makeGraph());
 
     const getNode = (id: string) => {
@@ -164,8 +174,12 @@ describe('TOPO-002 deterministic topology layout', () => {
       return node;
     };
 
-    expect(centerY(getNode('wan-1'))).toBeLessThan(
-      centerY(getNode('gateway-1')),
+    expect(centerX(getNode('wan-1'))).toBeLessThan(
+      centerX(getNode('gateway-1')),
+    );
+
+    expect(centerX(getNode('gateway-1'))).toBeLessThan(
+      centerX(getNode('core-1')),
     );
 
     expect(centerY(getNode('wan-1'))).toBeLessThan(

@@ -42,7 +42,7 @@ export const EDGE_VARIANT_STYLES: Record<EdgeVariant, EdgeVariantStyle> = {
     cased: true,
     legendLabel: 'Fiber backbone',
     legendDescription:
-      'Fiber link between the core and access switches. Drawn as a thick double line; copper links are thin single lines.',
+      'Fiber link between the core and access switches.',
   },
   poe: {
     stroke: 'var(--topo-edge-poe)',
@@ -66,7 +66,7 @@ export const EDGE_VARIANT_STYLES: Record<EdgeVariant, EdgeVariantStyle> = {
     dasharray: '3 3',
     legendLabel: 'Logical link',
     legendDescription:
-      'A relationship rather than a separate cable: the internet service, the built-in firewall, or controller management.',
+      'Not a separate cable: this just represents links between the internet service, the built-in firewall, or controller management.',
   },
 };
 

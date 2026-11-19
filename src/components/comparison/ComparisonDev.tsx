@@ -116,6 +116,27 @@ export default function ComparisonDev() {
     plan: NetworkPlanData;
   } | null>(null);
 
+  // NWP-TOPO-003 QA (TC-011): dev-only dark-mode switch. It toggles the
+  // `dark` class on <html>, which is what the shadcn theme variables and the
+  // topology --topo-* tokens key off. Leaving the page restores the theme the
+  // page was opened with.
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
+
+  useEffect(() => {
+    const initial = document.documentElement.classList.contains("dark");
+    return () => {
+      document.documentElement.classList.toggle("dark", initial);
+    };
+  }, []);
+
+  const toggleDark = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    setDark(next);
+  };
+
   const { setResult, clearResult } = usePlanResult();
   const { setSelected, clear } = useSelectedPlan();
 
@@ -172,6 +193,16 @@ export default function ComparisonDev() {
             {scenarioName}
           </button>
         ))}
+
+        <button
+          type="button"
+          onClick={toggleDark}
+          aria-pressed={dark}
+          className="ml-auto rounded border px-3 py-1 text-sm"
+          data-testid="dev-dark-mode-toggle"
+        >
+          {dark ? "Light mode" : "Dark mode"}
+        </button>
       </div>
 
       <Comparison
