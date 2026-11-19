@@ -18,10 +18,7 @@ import {
   type EdgeTypes,
   type EdgeProps,
 } from "@xyflow/react";
-import type {
-  FlowNodeData,
-  SnapshotHandlePosition,
-} from "./types";
+import type { FlowNodeData, SnapshotHandlePosition } from "./types";
 
 const DEVICE_ICONS = {
   wan: Globe,
@@ -33,7 +30,6 @@ const DEVICE_ICONS = {
   client_group: Monitor,
 } as const;
 
-// Original screen renderer — preserve existing appearance.
 export function TopologyNodeView({
   data,
 }: NodeProps<Node<FlowNodeData>>) {
@@ -41,7 +37,7 @@ export function TopologyNodeView({
     DEVICE_ICONS[data.role as keyof typeof DEVICE_ICONS] ?? Network;
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center  rounded-lg border bg-card px-2 py-2 text-center shadow-sm">
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border bg-card px-2 py-2 text-center shadow-sm">
       <Handle type="target" position={Position.Top} />
 
       <Icon
@@ -72,22 +68,71 @@ export function TopologyNodeView({
   );
 }
 
-const SNAPSHOT_HANDLE_POSITIONS: Record<
-  SnapshotHandlePosition,
-  Position
-> = {
+const SNAPSHOT_HANDLE_POSITIONS: Record<SnapshotHandlePosition, Position> = {
   top: Position.Top,
   right: Position.Right,
   bottom: Position.Bottom,
   left: Position.Left,
 };
 
-// Export renderer — displays role, label, product name, and SKU.
+// Print-friendly icon tile colors based on the TOPO-003 light palette.
+const SNAPSHOT_ICON_COLORS = {
+  wan: { backgroundColor: "#201923", color: "#ffffff" },
+  gateway: { backgroundColor: "#7900bd", color: "#ffffff" },
+  firewall: { backgroundColor: "#a50064", color: "#ffffff" },
+  controller: { backgroundColor: "#005e4b", color: "#ffffff" },
+  switch: { backgroundColor: "#00be88", color: "#18181b" },
+  access_point: { backgroundColor: "#57e7b3", color: "#18181b" },
+  client_group: { backgroundColor: "#f4f4f5", color: "#18181b" },
+} satisfies Record<
+  keyof typeof DEVICE_ICONS,
+  { backgroundColor: string; color: string }
+>;
+
+const SNAPSHOT_CARD_COLORS: Record<keyof typeof DEVICE_ICONS, string> = {
+  wan: "#f1eef3",
+  gateway: "#f3e8ff",
+  firewall: "#fce7f3",
+  controller: "#e0f2ee",
+  switch: "#d9f8ec",
+  access_point: "#e8fbf3",
+  client_group: "#f4f4f5",
+};
+
+function snapshotTextKey(value?: string | null): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export function TopologyExportNodeView({
   data,
 }: NodeProps<Node<FlowNodeData>>) {
+  const role = data.role as keyof typeof DEVICE_ICONS;
+  const Icon = DEVICE_ICONS[role] ?? Network;
+  const iconColors =
+    SNAPSHOT_ICON_COLORS[role] ?? SNAPSHOT_ICON_COLORS.client_group;
+  const cardColor =
+    SNAPSHOT_CARD_COLORS[role] ?? SNAPSHOT_CARD_COLORS.client_group;
+
+  const roleLabel = data.role.replaceAll("_", " ");
+  const label = data.label?.trim() || roleLabel;
+  const labelKey = snapshotTextKey(label);
+  const roleKey = snapshotTextKey(roleLabel);
+  const nameKey = snapshotTextKey(data.name);
+  const skuKey = snapshotTextKey(data.sku);
+
+  const showRole = roleKey !== labelKey;
+  const showName = nameKey !== "" && nameKey !== labelKey && nameKey !== roleKey;
+  const showSku =
+    skuKey !== "" &&
+    skuKey !== labelKey &&
+    skuKey !== roleKey &&
+    skuKey !== nameKey;
+
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center  overflow-hidden rounded-lg border border-gray-300 bg-white px-2 py-1 text-center text-black shadow-sm">
+    <div
+      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-lg border border-gray-300 px-2 py-1 text-center shadow-sm"
+      style={{ backgroundColor: cardColor }}
+    >
       {(data.snapshotHandles ?? []).map((handle) => (
         <Handle
           key={handle.id}
@@ -95,40 +140,53 @@ export function TopologyExportNodeView({
           type={handle.type}
           position={SNAPSHOT_HANDLE_POSITIONS[handle.position]}
           style={
-            handle.position === "top" ||
-            handle.position === "bottom"
+            handle.position === "top" || handle.position === "bottom"
               ? { left: `${handle.offset}%` }
               : { top: `${handle.offset}%` }
           }
         />
       ))}
 
-      <p className="w-full whitespace-normal break-words text-[10px] font-semibold leading-tight capitalize text-gray-600">
-        {data.role.replaceAll("_", " ")}
+      <span
+        aria-hidden="true"
+        className={`mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center ${
+          role === "wan" ? "rounded-full" : "rounded-md"
+        }`}
+        style={iconColors}
+      >
+        <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+      </span>
+
+      {showRole && (
+        <p className="w-full whitespace-normal break-words text-[10px] font-semibold capitalize leading-tight text-gray-600">
+          {roleLabel}
+        </p>
+      )}
+
+      <p className="w-full whitespace-normal break-words text-[11px] font-bold leading-tight text-gray-900">
+        {label}
       </p>
 
-      <p className="w-full whitespace-normal break-words text-[11px] font-bold leading-tight">
-        {data.label}
-      </p>
-
-      {data.name && (
-        <p className="w-full whitespace-normal break-words text-[10px] leading-tight">
+      {showName && (
+        <p className="w-full whitespace-normal break-words text-[10px] leading-tight text-gray-900">
           {data.name}
         </p>
       )}
 
-      {data.sku && (
+      {showSku && (
         <p className="w-full whitespace-normal break-words text-[10px] leading-tight text-gray-600">
           {data.sku}
         </p>
       )}
 
       {data.qty !== undefined && (
-        <p className="text-[10px] leading-tight">Qty: {data.qty}</p>
+        <p className="text-[10px] leading-tight text-gray-900">
+          Qty: {data.qty}
+        </p>
       )}
 
       {data.count !== undefined && data.count !== null && (
-        <p className="text-[10px] leading-tight">
+        <p className="text-[10px] leading-tight text-gray-900">
           Devices: {data.count}
         </p>
       )}
@@ -167,7 +225,6 @@ export const edgeTypes: EdgeTypes = {
 };
 
 // Snapshot-only renderer for the Floor Switch → AP connection.
-// Uses the assigned right/left handles and draws one direct line.
 export function SnapshotPoeEdge({
   id,
   sourceX,
@@ -219,10 +276,7 @@ export function SnapshotCoreUplinkEdge({
   );
 }
 
-// AP → Clients 3 / Clients 4.
-// Down from the AP's bottom handle, across inside the gap below the AP/switch
-// row, down the lane right of the target column, then left into the target's
-// right handle. Nothing passes behind a card.
+// Route AP → Clients 3 / Clients 4 through the gap between card rows.
 export function SnapshotAPRow2Edge({
   id,
   sourceX,
