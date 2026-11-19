@@ -11,8 +11,25 @@
  * down only overrides what differs.
  */
 
+.topology-snapshot {
+  --accent: #f4f1f5;
+  --accent-foreground: #201923;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f1f5;
+  --destructive: #dc2626;
+  --ring: #a59aaa;
+  --chart-1: #57e7b3;
+  --chart-2: #00be88;
+  --chart-3: #009c74;
+  --chart-4: #007e63;
+  --chart-5: #005e4b;
+}
+
 :root,
-.dark {
+.dark,
+.topology-snapshot {
   /*
    * Glyph colours used on the role-coloured tiles. Both stay the same in light and dark mode:
    * --topo-ink-light is near-white (0.977) and --topo-ink-dark is near-black (0.145).

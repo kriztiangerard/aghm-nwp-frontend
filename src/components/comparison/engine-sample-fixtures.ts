@@ -23,7 +23,7 @@ topology: {
   edges: [
     { id: "e1", source: "wan-1", target: "gateway-1", type: "wan" },
     { id: "e2", source: "gateway-1", target: "switch-1", type: "uplink" },
-    { id: "e3", source: "gateway-1", target: "controller-1", type: "management" },
+    { id: "e3", source: "controller-1", target: "gateway-1", type: "management" },
     { id: "e4", source: "switch-1", target: "ap-1", type: "poe" },
     { id: "e5", source: "ap-1", target: "clients-1", type: "access" },
   ],
