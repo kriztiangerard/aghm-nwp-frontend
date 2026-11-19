@@ -18,8 +18,8 @@ import {
  * - tags each access switch with its floor (from its placement);
  * - replaces the AP node with one node per floor (qty = that floor's APs,
  *   planTotal = plan total, same single model);
- * - replaces wired PCs, Wi-Fi devices, VoIP phones and cameras with one
- *   grouped node per floor (count = that floor's devices);
+ * - replaces wired PCs, Wi-Fi devices, VoIP phones, cameras and other
+ *   devices with one grouped node per floor (count = that floor's devices);
  * - reconnects every per-floor node to the access switch(es) on the same
  *   floor, and every per-floor Wi-Fi group to the AP node on the same floor.
  *
@@ -28,6 +28,18 @@ import {
  * across floors round-robin, so the two can disagree. Using one source keeps
  * each floor consistent. Both are planning estimates; see the TOPO-003
  * AC10 change note for the ENGINE-016 follow-up that would make them agree.
+ *
+ * "Other devices" (AC5 coverage gap, QA round 2 follow-up). The rule is the
+ * same as for every other client kind, and depends only on the payload:
+ * - With per-floor placements (a known count): one node per floor with that
+ *   floor's count, fed by that floor's switch(es). The floor counts sum to
+ *   the total, which is kept in planTotal.
+ * - Without placements: one node, drawn in the zone of the switch it is
+ *   attached to. Its count is shown if the payload gives one, otherwise
+ *   "Count not specified". This is what live generation sends today:
+ *   contract v3 has `otherDevices { hasOtherDevices, description }` and no
+ *   count, so ENGINE-016 sends count: null and no placements.
+ * The frontend never invents a split that the payload does not give.
  *
  * Single-floor plans, and plans without placements, are returned unchanged.
  * Idempotent: a graph that already has floor-tagged nodes is returned as is,
@@ -42,6 +54,7 @@ const SPLIT_CLIENT_KINDS = new Set([
   'wifi_devices',
   'voip_phones',
   'cameras',
+  'other_devices',
 ]);
 
 const trailingNumber = (id: string) => {
@@ -263,8 +276,9 @@ export function groupByFloor(graph: FlowGraphResult): FlowGraphResult {
     }
   }
 
-  // "Other devices" has no count or placements; draw it in the zone of the
-  // switch it hangs off, when that switch has a floor.
+  // A client group without placements (today: "Other devices" from live
+  // generation, which has no count) is drawn in the zone of the switch it
+  // hangs off, when that switch has a floor.
   const floorOf = new Map(
     outNodes
       .filter((node) => node.data.floorId)
