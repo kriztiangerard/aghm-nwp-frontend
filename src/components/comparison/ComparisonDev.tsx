@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Comparison, { type PlanChoice } from "@/components/comparison/Comparison";
-import type { NetworkPlanData } from "@/components/comparison/types";
+import type {
+  BomLineItem,
+  NetworkPlanData,
+} from "@/components/comparison/types";
 import { scenarios } from "@/components/comparison/fixtures";
 import { usePlanResult } from "@/components/comparison/plan-result-context";
 import { useSelectedPlan } from "@/components/comparison/selected-plan-context";
+import type { Plan as EnginePlan } from "@/types/api-types";
 
 import {
   reportDevEngineResult,
@@ -17,6 +21,92 @@ const defaultVendors = {
   "High-Performance": "TP-Link Omada",
 } as const;
 
+const engineBomCategory: Partial<
+  Record<BomLineItem["category"], EnginePlan["bom"]["lines"][number]["category"]>
+> = {
+  Gateway: "gateway",
+  Switch: "switch",
+  "Access Point": "access_point",
+  Controller: "controller",
+};
+
+function toEngineBomLine(line: BomLineItem, vendor: string) {
+  const category = engineBomCategory[line.category];
+  if (!category) {
+    throw new Error(`Cannot add "${line.category}" to the dev report fixture.`);
+  }
+
+  return {
+    category,
+    sku: line.sku,
+    name: line.name,
+    vendor,
+    qty: line.quantity,
+    unitPrice: line.unitPrice,
+    lineTotal: line.subtotal,
+    status:
+      line.status === "SUNSETTING"
+        ? ("SUNSETTING" as const)
+        : ("ACTIVE" as const),
+    isGeneric: line.isGeneric,
+    priceSource: line.priceSource,
+    isStale: line.isStale,
+    ...(line.priceUpdatedAt ? { priceUpdatedAt: line.priceUpdatedAt } : {}),
+  };
+}
+
+function engineResultForTopologyScenario(
+  choice: PlanChoice,
+  selectedPlan: NetworkPlanData,
+) {
+  const topology = selectedPlan.topology;
+  if (!topology) {
+    throw new Error("TOPO-003 dev scenario is missing topology data.");
+  }
+
+  const planType = choice.tier === "Cost-Efficient" ? "CE" : "HP";
+  const sourcePlan = reportDevEngineResult.plans.find(
+    (candidate) =>
+      candidate.vendor === choice.vendor && candidate.planType === planType,
+  );
+  if (!sourcePlan) {
+    throw new Error(
+      `No dev report plan for vendor "${choice.vendor}" and plan type "${planType}".`,
+    );
+  }
+
+  const lines = selectedPlan.bom.map((line) =>
+    toEngineBomLine(line, choice.vendor),
+  );
+
+  return {
+    ...reportDevEngineResult,
+    plans: reportDevEngineResult.plans.map((candidate) =>
+      candidate === sourcePlan
+        ? {
+            ...candidate,
+            complete: selectedPlan.complete,
+            items: lines.map(({ category, sku, qty }) => ({
+              category,
+              sku,
+              qty,
+            })),
+            bom: {
+              currency: selectedPlan.currency,
+              lines,
+              total: selectedPlan.totalCost,
+              totalIsPartial: selectedPlan.totalIsPartial,
+            },
+            topology: {
+              nodes: topology.nodes,
+              edges: topology.edges,
+            },
+          }
+        : candidate,
+    ),
+  };
+}
+
 export default function ComparisonDev() {
   const navigate = useNavigate();
 
@@ -26,10 +116,29 @@ export default function ComparisonDev() {
     plan: NetworkPlanData;
   } | null>(null);
 
+  // NWP-TOPO-003 QA (TC-011): dev-only dark-mode switch. It toggles the
+  // `dark` class on <html>, which is what the shadcn theme variables and the
+  // topology --topo-* tokens key off. Leaving the page restores the theme the
+  // page was opened with.
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
+
+  useEffect(() => {
+    const initial = document.documentElement.classList.contains("dark");
+    return () => {
+      document.documentElement.classList.toggle("dark", initial);
+    };
+  }, []);
+
+  const toggleDark = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    setDark(next);
+  };
+
   const { setResult, clearResult } = usePlanResult();
   const { setSelected, clear } = useSelectedPlan();
-
-  const happyPlans = scenarios.happy;
 
   useEffect(() => {
   clear();
@@ -47,16 +156,20 @@ export default function ComparisonDev() {
   const handleContinue = (choice: PlanChoice, plan: NetworkPlanData) => {
     setContinued({ choice, plan });
 
-    if (name !== "happy" || !happyPlans) {
+    const isTopologyScenario = name.startsWith("topo003:");
+    const plansData = scenarios[name];
+    if ((name !== "happy" && !isTopologyScenario) || !plansData) {
       return;
     }
 
     setSelected(choice, plan);
 
     setResult({
-      engineResult: reportDevEngineResult,
+      engineResult: isTopologyScenario
+        ? engineResultForTopologyScenario(choice, plan)
+        : reportDevEngineResult,
       questionnaireData: reportDevQuestionnaireData,
-      plansData: happyPlans,
+      plansData,
       defaultVendors,
     });
 
@@ -80,6 +193,16 @@ export default function ComparisonDev() {
             {scenarioName}
           </button>
         ))}
+
+        <button
+          type="button"
+          onClick={toggleDark}
+          aria-pressed={dark}
+          className="ml-auto rounded border px-3 py-1 text-sm"
+          data-testid="dev-dark-mode-toggle"
+        >
+          {dark ? "Light mode" : "Dark mode"}
+        </button>
       </div>
 
       <Comparison
@@ -89,21 +212,23 @@ export default function ComparisonDev() {
         onContinue={handleContinue}
       />
 
-      {continued && name !== "happy" && (
-        <pre className="mx-auto max-w-7xl px-4 pb-8 text-xs">
-          {JSON.stringify(
-            {
-              tier: continued.choice.tier,
-              vendor: continued.choice.vendor,
-              complete: continued.plan.complete,
-              totalCost: continued.plan.totalCost,
-              bomLines: continued.plan.bom.length,
-            },
-            null,
-            2,
-          )}
-        </pre>
-      )}
+      {continued &&
+        name !== "happy" &&
+        !name.startsWith("topo003:") && (
+          <pre className="mx-auto max-w-7xl px-4 pb-8 text-xs">
+            {JSON.stringify(
+              {
+                tier: continued.choice.tier,
+                vendor: continued.choice.vendor,
+                complete: continued.plan.complete,
+                totalCost: continued.plan.totalCost,
+                bomLines: continued.plan.bom.length,
+              },
+              null,
+              2,
+            )}
+          </pre>
+        )}
     </div>
   );
 }

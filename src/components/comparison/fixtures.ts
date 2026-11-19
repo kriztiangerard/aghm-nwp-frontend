@@ -2,6 +2,7 @@
 import type { BomLineItem, NetworkPlanData, PlanTier, VendorName, VendorPlansPayload } from "./types";
 import { engineScenarios } from "./engine-sample-fixtures.ts";
 import { topo002StressScenario } from "./topo002-stress-fixture";
+import { topo003QaScenarios } from "./topo003-fixtures";
 
 const AT = "Oct 28, 2026, 9:00 AM";
 
@@ -19,20 +20,82 @@ const plan = (vendor: VendorName, tier: PlanTier, bom: BomLineItem[], extra: Par
   complete: true, unmet: [], ...extra,
 });
 
-const omadaCE = plan("TP-Link Omada", "Cost-Efficient", [
+const topologyForBom = (bom: BomLineItem[]): NonNullable<NetworkPlanData["topology"]> => {
+  const gateway = bom.find((item) => item.category === "Gateway");
+  if (!gateway) throw new Error("Happy topology fixture requires a gateway BOM item.");
+
+  const accessPoints = bom.filter((item) => item.category === "Access Point");
+  const accessPointNodes = accessPoints.map((item, index) => ({
+    id: `access-point-${index + 1}`,
+    role: "access_point",
+    layer: "edge",
+    label: item.name,
+    sku: item.sku,
+    qty: item.quantity,
+  }));
+
+  return {
+    nodes: [
+      { id: "wan", role: "wan", layer: "wan", label: "Internet" },
+      {
+        id: "gateway",
+        role: "gateway",
+        layer: "gateway",
+        label: gateway.name,
+        sku: gateway.sku,
+        qty: gateway.quantity,
+      },
+      ...accessPointNodes,
+    ],
+    edges: [
+      {
+        id: "wan-gateway",
+        source: "wan",
+        target: "gateway",
+        type: "wan",
+        medium: "fiber",
+      },
+      ...accessPoints.map((item, index) => ({
+        id: `gateway-access-point-${index + 1}`,
+        source: "gateway",
+        target: `access-point-${index + 1}`,
+        type: "poe",
+        medium: "copper" as const,
+        count: item.quantity,
+      })),
+    ],
+  };
+};
+
+const omadaCEBom = [
   line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
   line({ sku: "EAP610", name: "Omada AX1800 Ceiling AP", category: "Access Point", quantity: 2, unitPrice: 5200 }),
-]);
-const omadaHP = plan("TP-Link Omada", "High-Performance", [
+];
+const omadaCE = plan("TP-Link Omada", "Cost-Efficient", omadaCEBom, {
+  topology: topologyForBom(omadaCEBom),
+});
+
+const omadaHPBom = [
   line({ sku: "ER7206", name: "Omada Multi-Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 9800 }),
   line({ sku: "EAP670", name: "Omada AX5400 Ceiling AP", category: "Access Point", quantity: 2, unitPrice: 8900 }),
-]);
-const unifiCE = plan("Ubiquiti UniFi", "Cost-Efficient", [
+];
+const omadaHP = plan("TP-Link Omada", "High-Performance", omadaHPBom, {
+  topology: topologyForBom(omadaHPBom),
+});
+
+const unifiCEBom = [
   line({ sku: "UDR", name: "UniFi Dream Router", category: "Gateway", quantity: 1, unitPrice: 12000 }),
-]);
-const unifiHP = plan("Ubiquiti UniFi", "High-Performance", [
+];
+const unifiCE = plan("Ubiquiti UniFi", "Cost-Efficient", unifiCEBom, {
+  topology: topologyForBom(unifiCEBom),
+});
+
+const unifiHPBom = [
   line({ sku: "UDM-Pro", name: "UniFi Dream Machine Pro", category: "Gateway", quantity: 1, unitPrice: 23000 }),
-]);
+];
+const unifiHP = plan("Ubiquiti UniFi", "High-Performance", unifiHPBom, {
+  topology: topologyForBom(unifiHPBom),
+});
 
 export const scenarios: Record<string, VendorPlansPayload | undefined> = {
   loading: undefined,                                   // AC 1 loading state
@@ -73,4 +136,5 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
   },
   ...engineScenarios, // engineSample, engineSampleComplete, engineSampleMixed
   topo002Stress: topo002StressScenario,
+  ...topo003QaScenarios, // TOPO-003 QA: one button per fixture, "topo003:<name>"
 };

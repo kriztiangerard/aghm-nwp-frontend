@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toFlowGraph } from "./adapter";
-import { groupTopologyPlacements } from "./floor-closet-breakdown";
+import { groupTopologyPlacements } from "./floor-closet-grouping";
 import type { TopologyFlowNode } from "./types";
 
 function makeNode(
