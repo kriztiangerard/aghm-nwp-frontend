@@ -17,7 +17,6 @@ import {
 
 import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
-import { createTopologySnapshot } from "@/components/topology/topology-snapshot";
 import { buildReportPdf } from "@/lib/report/buildReportPdf";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
@@ -279,32 +278,7 @@ export default function Report() {
     setPdfError(null);
 
     try {
-      let topologySnapshot: string | null = null;
-
-      // Snapshot failure must not prevent PDF generation.
-      try {
-        const snapshot = await createTopologySnapshot(plan, {
-          maxWidth: 1200,
-          padding: 56,
-          pixelRatio: 2,
-        });
-
-        if (snapshot.status === "success") {
-          topologySnapshot = snapshot.dataUrl;
-        } else {
-          console.warn(
-            "Topology snapshot unavailable:",
-            snapshot.reason,
-          );
-        }
-      } catch (snapshotError) {
-        console.warn(
-          "Topology snapshot failed. Continuing without the diagram.",
-          snapshotError,
-        );
-      }
-
-      const blob = await buildReportPdf(report, topologySnapshot);
+      const blob = await buildReportPdf(report, null);
       const url = URL.createObjectURL(blob);
 
       const now = new Date();
