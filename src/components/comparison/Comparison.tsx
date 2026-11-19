@@ -1,7 +1,9 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
+import { getPlan } from "./get-plan";
+import { VendorSelect } from "./vendorselect";
 import { PlanCard } from "./plancard";
-import { EmptyPlanCard, EmptyState, LoadingState } from "./plan-states";
+import { EmptyState, LoadingState } from "./plan-states";
 import {
   PLAN_TIERS,
   VENDOR_NAMES,
@@ -67,33 +69,29 @@ const ComparisonView: React.FC<ComparisonProps> = ({
     return result;
   }, [plansData]);
 
-  const {
-  panelChoices,
-  selectedTier,
-  setPanelChoice,
-  setSelectedTier,
-} = useSelectedPlan();
+  const { panelChoices, selectedTier, setPanelChoice, setSelectedTier } =
+    useSelectedPlan();
 
-  const shownVendor = (tier: PlanTier): VendorName | undefined => {
+  const shownVendor = (tier: PlanTier): VendorName => {
     const list = vendorsByTier[tier];
     const picked = panelChoices[tier];
-    if (picked && list.includes(picked)) return picked;
+    if (picked) return picked;
     const preferred = defaultVendors?.[tier];
     if (preferred && list.includes(preferred)) return preferred;
-    return list[0];
+    return list[0] ?? VENDOR_NAMES[0];
   };
 
-  const shown: Record<PlanTier, VendorName | undefined> = {
+  const shown: Record<PlanTier, VendorName> = {
     "Cost-Efficient": shownVendor("Cost-Efficient"),
     "High-Performance": shownVendor("High-Performance"),
   };
 
   // NWP-COMPARE-002: derived from the selected tier and that card's current vendor.
   const selectedVendor = selectedTier ? shown[selectedTier] : undefined;
-  const selectedPlan =
-    selectedTier && selectedVendor
-      ? plansData?.[selectedVendor]?.[selectedTier]
-      : undefined;
+  const selectedLookup = selectedTier && selectedVendor && plansData
+    ? getPlan(plansData, selectedVendor, selectedTier)
+    : undefined;
+  const selectedPlan = selectedLookup?.found ? selectedLookup.plan : undefined;
   const canContinue =
     selectedTier !== null && selectedVendor !== undefined && selectedPlan?.complete === true;
 
@@ -113,24 +111,6 @@ const ComparisonView: React.FC<ComparisonProps> = ({
 
   const isLoading = plansData === undefined;
   const hasAnyPlan = PLAN_TIERS.some((t) => vendorsByTier[t].length > 0);
-
-  const renderCard = (tier: PlanTier) => {
-    const vendor = shown[tier];
-    const plan = vendor ? plansData?.[vendor]?.[tier] : undefined;
-    if (!vendor || !plan) return <EmptyPlanCard tier={tier} />;
-    return (
-      <PlanCard
-        tier={tier}
-        selectedVendor={vendor}
-        availableVendors={vendorsByTier[tier]}
-        onVendorChange={(v) => handleVendorChange(tier, v)}
-        planData={plan}
-        isSelected={selectedTier === tier}
-        onSelect={() => setSelectedTier(tier)}
-        selectable={plan.complete}
-      />
-    );
-  };
 
   return (
     <section className="w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -155,8 +135,19 @@ const ComparisonView: React.FC<ComparisonProps> = ({
             aria-label="Network plans"
             className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
           >
-            {renderCard("Cost-Efficient")}
-            {renderCard("High-Performance")}
+            {PLAN_TIERS.map((tier) => (
+              <PlanPanel
+                key={tier}
+                tier={tier}
+                vendor={shown[tier]}
+                defaultVendor={defaultVendors?.[tier]}
+                vendorsWithPlans={vendorsByTier[tier]}
+                plansData={plansData}
+                isSelected={selectedTier === tier}
+                onSelect={() => setSelectedTier(tier)}
+                onVendorChange={(vendor) => handleVendorChange(tier, vendor)}
+              />
+            ))}
           </div>
 
           <div className="flex justify-end">
@@ -169,5 +160,71 @@ const ComparisonView: React.FC<ComparisonProps> = ({
     </section>
   );
 };
+
+interface PlanPanelProps {
+  tier: PlanTier;
+  vendor: VendorName;
+  defaultVendor?: VendorName | null;
+  vendorsWithPlans: VendorName[];
+  plansData: VendorPlansPayload;
+  isSelected: boolean;
+  onSelect: () => void;
+  onVendorChange: (vendor: VendorName) => void;
+}
+
+function PlanPanel({
+  tier,
+  vendor,
+  defaultVendor,
+  vendorsWithPlans,
+  plansData,
+  isSelected,
+  onSelect,
+  onVendorChange,
+}: PlanPanelProps) {
+  const lookup = getPlan(plansData, vendor, tier);
+  const completeVendors = vendorsWithPlans.filter(
+    (candidate) => plansData[candidate]?.[tier]?.complete === true,
+  );
+  const hasDefault = defaultVendor != null && vendorsWithPlans.includes(defaultVendor);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      {!hasDefault && vendorsWithPlans.length > 0 && (
+        <p role="status" className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          {defaultVendor == null
+            ? "No default vendor could be derived."
+            : "The default vendor has no plan available."}{" "}
+          The first vendor with a plan is shown initially.
+        </p>
+      )}
+      {lookup.found ? (
+        <PlanCard
+          tier={tier}
+          selectedVendor={vendor}
+          availableVendors={completeVendors}
+          onVendorChange={onVendorChange}
+          planData={lookup.plan}
+          isSelected={isSelected}
+          onSelect={onSelect}
+          selectable={lookup.plan.complete}
+        />
+      ) : (
+        <section aria-label={`${tier} plan`} className="rounded-xl border p-6">
+          <h2 className="text-xl font-bold">{tier} Plan</h2>
+          <VendorSelect
+            tier={tier}
+            selectedVendor={vendor}
+            availableVendors={completeVendors}
+            onVendorChange={onVendorChange}
+          />
+          <p role="status" className="mt-4 text-sm text-muted-foreground">
+            No {tier} plan was returned for {vendor}.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}
 
 export default Comparison;
