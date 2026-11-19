@@ -1,4 +1,3 @@
-
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
@@ -7,6 +6,9 @@ import type { NetworkPlanData } from "@/components/comparison/types";
 import { createTopologySnapshot } from "@/components/topology/topology-snapshot";
 import "@xyflow/react/dist/style.css";
 import { topo002StressScenario } from "@/components/comparison/topo002-stress-fixture";
+import { toFlowGraph } from "@/components/topology/adapter";
+import { layoutGraph } from "@/components/topology/layout";
+import { toCanvasNodes } from "@/components/topology/topology-graph";
 
 const mocks = vi.hoisted(() => ({
   toPng: vi.fn(),
@@ -295,23 +297,23 @@ describe("createTopologySnapshot", () => {
 
     expect(flowProps.defaultViewport).toEqual(
       expect.objectContaining({
-        x: 0,
-        y: 0,
         zoom: expect.any(Number),
       }),
     );
 
+    expect(Math.abs(flowProps.defaultViewport.x)).toBe(0);
+    expect(Math.abs(flowProps.defaultViewport.y)).toBe(0);
     expect(flowProps.defaultViewport.zoom).toBeGreaterThan(0);
     expect(flowProps.defaultViewport.zoom).toBeLessThanOrEqual(1);
     expect(flowProps.fitView).toBe(false);
     expect(flowProps.viewport).toBeUndefined();
     expect(flowProps.minZoom).toBe(flowProps.defaultViewport.zoom);
-    expect(flowProps.maxZoom).toBe(1);
+    expect(flowProps.maxZoom).toBeGreaterThanOrEqual(flowProps.defaultViewport.zoom);
 
     // The ordinary two-node plan should retain its original text scale.
     expect(flowProps.defaultViewport.zoom).toBe(1);
 
-    // Export uses the dedicated print-friendly node renderers.
+    // Export uses the shared topology node renderers.
     expect(flowProps.nodeTypes.gateway).toBeDefined();
     expect(flowProps.nodeTypes.switch).toBeDefined();
 
@@ -354,11 +356,11 @@ describe("createTopologySnapshot", () => {
         id: "edge-1",
         source: "gateway-1",
         target: "switch-1",
-        type: "uplink",
+        type: "topology",
+        data: expect.objectContaining({ linkType: "uplink" }),
       }),
     );
   });
-
 
   it("captures the complete 43-node stress topology", async () => {
     const stressPlan =
@@ -380,164 +382,29 @@ describe("createTopologySnapshot", () => {
     const exportNodes = flowProps.nodes;
     const exportEdges = flowProps.edges;
 
-    // All 43 original nodes must be retained.
-    expect(exportNodes).toHaveLength(43);
-
-    expect(exportNodes.map((node: { id: string }) => node.id).sort())
-      .toEqual(
-        stressPlan.topology.nodes
-          .map((node) => node.id)
-          .sort(),
-      );
-
-    // All 42 original edges must be retained.
-    expect(exportEdges).toHaveLength(42);
-
-    // Every exported node must preserve its original data.
-const originalNodes = stressPlan.topology.nodes;
-
-for (const originalNode of originalNodes) {
-  const exportedNode = exportNodes.find(
-    (node: { id: string }) => node.id === originalNode.id,
-  );
-
-  expect(exportedNode).toBeDefined();
-
-  expect(exportedNode?.data.role).toBe(originalNode.role);
-expect(exportedNode?.data.label).toBe(originalNode.label);
-expect(exportedNode?.data.sku).toBe(originalNode.sku);
-expect(exportedNode?.data.qty).toBe(originalNode.qty);
-expect(exportedNode?.data.status).toBe(originalNode.status);
-expect(exportedNode?.data.layer).toBe(originalNode.layer);
-expect(exportedNode?.data.integrates).toEqual(originalNode.integrates);
-expect(exportedNode?.data.integratedWith).toBe(originalNode.integratedWith);
-expect(exportedNode?.data.count).toBe(originalNode.count);
-expect(exportedNode?.data.clientKind).toBe(originalNode.clientKind);
-expect(exportedNode?.data.placements).toEqual(originalNode.placements);
-}
-
-// Every exported edge must preserve its original connection.
-const originalEdges = stressPlan.topology.edges;
-
-for (const originalEdge of originalEdges) {
-  const exportedEdge = exportEdges.find(
-    (edge: { id: string }) => edge.id === originalEdge.id,
-  );
-
-  expect(exportedEdge).toBeDefined();
-
-  expect(exportedEdge?.source).toBe(originalEdge.source);
-  expect(exportedEdge?.target).toBe(originalEdge.target);
-}
-
-
-    // Core switch → all five floor switches must use the shared trunk.
-    const exportNodeById = new Map(
-      exportNodes.map((node) => [node.id, node]),
-    );
-
-    const coreUplinkEdges = exportEdges.filter((edge) => {
-      const source = exportNodeById.get(edge.source);
-      const target = exportNodeById.get(edge.target);
-
-      return (
-        source?.data.role === "switch" &&
-        source.data.layer === "core" &&
-        target?.data.role === "switch" &&
-        target.data.layer === "access"
-      );
+    const sourceGraph = toFlowGraph({
+      bom: stressPlan.bom,
+      topology: stressPlan.topology,
     });
 
-    expect(coreUplinkEdges).toHaveLength(5);
+    if (sourceGraph.status !== "available") {
+      throw new Error(`Stress fixture topology unavailable: ${sourceGraph.reason}`);
+    }
 
-    const laneValues = coreUplinkEdges.map(
-      (edge) => edge.data?.snapshotLaneX,
+    const screenLayout = layoutGraph(sourceGraph);
+
+    expect(screenLayout.nodes).toHaveLength(43);
+    expect(screenLayout.edges).toHaveLength(42);
+    expect(screenLayout.nodes.map((node) => node.id).sort()).toEqual(
+      stressPlan.topology.nodes.map((node) => node.id).sort(),
+    );
+    expect(screenLayout.edges.map((edge) => edge.id).sort()).toEqual(
+      stressPlan.topology.edges.map((edge) => edge.id).sort(),
     );
 
-    for (const edge of coreUplinkEdges) {
-      expect(edge.type).toBe("snapshotCoreUplink");
-      expect(typeof edge.data?.snapshotLaneX).toBe("number");
-      expect(Number.isFinite(edge.data?.snapshotLaneX)).toBe(true);
-
-      const source = exportNodeById.get(edge.source);
-      const target = exportNodeById.get(edge.target);
-
-      const sourceHandle = source?.data.snapshotHandles?.find(
-        (handle) => handle.id === edge.sourceHandle,
-      );
-
-      const targetHandle = target?.data.snapshotHandles?.find(
-        (handle) => handle.id === edge.targetHandle,
-      );
-
-      expect(sourceHandle?.position).toBe("bottom");
-      expect(targetHandle?.position).toBe("left");
-    }
-
-    // Every Core → Floor Switch edge must share one trunk lane.
-    expect(new Set(laneValues).size).toBe(1);
-
-    // Floor Switch → AP routing must remain unchanged.
-    const floorApEdges = exportEdges.filter((edge) => {
-      const source = exportNodeById.get(edge.source);
-      const target = exportNodeById.get(edge.target);
-
-      return (
-        source?.data.role === "switch" &&
-        source.data.layer === "access" &&
-        target?.data.role === "access_point"
-      );
-    });
-
-    expect(floorApEdges).toHaveLength(5);
-
-    for (const edge of floorApEdges) {
-      expect(edge.type).toBe("poe");
-
-      const source = exportNodeById.get(edge.source);
-      const target = exportNodeById.get(edge.target);
-
-      const sourceHandle = source?.data.snapshotHandles?.find(
-        (handle) => handle.id === edge.sourceHandle,
-      );
-
-      const targetHandle = target?.data.snapshotHandles?.find(
-        (handle) => handle.id === edge.targetHandle,
-      );
-
-      expect(sourceHandle?.position).toBe("right");
-      expect(targetHandle?.position).toBe("left");
-    }
-
-    // WAN → Gateway → Core spacing must remain exactly 70px.
-    const wan = exportNodeById.get("wan");
-    const gateway = exportNodeById.get("gateway");
-    const core = exportNodeById.get("core");
-
-    expect(wan).toBeDefined();
-    expect(gateway).toBeDefined();
-    expect(core).toBeDefined();
-
-    const getNodeHeight = (node: typeof wan) =>
-      node!.height ?? node!.measured?.height ?? 80;
-
-    const wanGatewayGap =
-      gateway!.position.y -
-      (wan!.position.y + getNodeHeight(wan));
-
-    const gatewayCoreGap =
-      core!.position.y -
-      (gateway!.position.y + getNodeHeight(gateway));
-
-    expect(wanGatewayGap).toBe(70);
-    expect(gatewayCoreGap).toBe(70);
-
-    expect(exportEdges.map((edge: { id: string }) => edge.id).sort())
-      .toEqual(
-        stressPlan.topology.edges
-          .map((edge) => edge.id)
-          .sort(),
-      );
+    // Include floor zones and preserve the screen's graph and edge handles.
+    expect(exportNodes).toEqual(toCanvasNodes(screenLayout));
+    expect(exportEdges).toEqual(screenLayout.edges);
 
     // Every edge must still connect existing nodes.
     const nodeIds = new Set(

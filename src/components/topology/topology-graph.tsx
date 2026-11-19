@@ -6,6 +6,7 @@ import {
   ControlButton,
   ReactFlow,
   type Node,
+  type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./topology-theme.css";
@@ -41,7 +42,7 @@ const EXPANDED_MIN_ZOOM = 0.45;
  * (zIndex -1). They exist only on the canvas; layout results and tests see
  * them as `zones`, not as topology nodes.
  */
-function toCanvasNodes(graph: PositionedFlowGraph): Node<FlowNodeData>[] {
+export function toCanvasNodes(graph: PositionedFlowGraph): Node<FlowNodeData>[] {
   const zoneNodes: Node<FlowNodeData>[] = graph.zones.map((zone) => ({
     id: `zone-${zone.id}`,
     type: FLOOR_ZONE_NODE_TYPE,
@@ -58,14 +59,18 @@ function toCanvasNodes(graph: PositionedFlowGraph): Node<FlowNodeData>[] {
   return [...zoneNodes, ...graph.nodes];
 }
 
-function TopologyCanvas({
+export function TopologyCanvas({
   graph,
   expanded = false,
   onExpand,
+  exportViewport,
+  onInit,
 }: {
   graph: PositionedFlowGraph;
   expanded?: boolean;
   onExpand?: () => void;
+  exportViewport?: Viewport;
+  onInit?: () => void;
 }) {
   // Unique per canvas: two plan panels and the expanded dialog can be mounted together.
   const markerPrefix = `topo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -95,26 +100,34 @@ function TopologyCanvas({
           edges={graph.edges}
           nodeTypes={topologyNodeTypes}
           edgeTypes={topologyEdgeTypes}
-          fitView
+          fitView={!exportViewport}
           fitViewOptions={fitViewOptions}
+          defaultViewport={exportViewport}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
-          minZoom={0.1}
+          minZoom={exportViewport?.zoom ?? 0.1}
           maxZoom={2}
+          panOnDrag={!exportViewport}
+          zoomOnScroll={!exportViewport}
+          zoomOnPinch={!exportViewport}
+          zoomOnDoubleClick={!exportViewport}
+          onInit={onInit}
         >
           <Background />
-          <Controls showInteractive={false}>
-            {!expanded && onExpand && (
-              <ControlButton
-                onClick={onExpand}
-                title="Expand topology"
-                aria-label="Expand topology"
-              >
-                <Maximize2 size={16} />
-              </ControlButton>
-            )}
-          </Controls>
+          {!exportViewport && (
+            <Controls showInteractive={false}>
+              {!expanded && onExpand && (
+                <ControlButton
+                  onClick={onExpand}
+                  title="Expand topology"
+                  aria-label="Expand topology"
+                >
+                  <Maximize2 size={16} />
+                </ControlButton>
+              )}
+            </Controls>
+          )}
         </ReactFlow>
       </div>
     </TopologyMarkerContext.Provider>
