@@ -1,12 +1,12 @@
-
 import { createRoot, type Root } from "react-dom/client";
-import { ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import { ReactFlowProvider } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import type { NetworkPlanData } from "@/components/comparison/types";
 import { toFlowGraph } from "./adapter";
 import { layoutGraph } from "./layout";
 import { getTopologyExportBounds } from "./topology-export-bounds";
-import { edgeTypes, exportNodeTypes } from "./topology-renderers";
+import { TopologyCanvas, toCanvasNodes } from "./topology-graph";
+import "@xyflow/react/dist/style.css";
 
 export type TopologySnapshotResult =
   | {
@@ -50,12 +50,31 @@ const LIGHT_THEME = {
 
 function waitForFrame(): Promise<void> {
   return new Promise((resolve) => {
-    window.requestAnimationFrame(() => resolve());
+    let settled = false;
+
+    const complete = () => {
+      if (settled) return;
+      settled = true;
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
+
+    const frameId = window.requestAnimationFrame(complete);
+
+    // Background tabs may pause requestAnimationFrame indefinitely.
+    // Keep PDF snapshot generation moving when the source tab is inactive.
+    const timeoutId = window.setTimeout(complete, 100);
   });
 }
 
+/**
+ * Waits for React Flow to initialize, render its nodes, and calculate
+ * non-empty SVG paths for every expected edge.
+ */
 async function waitForReactFlow(
   root: HTMLElement,
+  expectedEdgeCount: number,
   render: (onInit: () => void) => void,
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
@@ -75,6 +94,39 @@ async function waitForReactFlow(
   if (!root.querySelector(".react-flow__node")) {
     throw new Error("React Flow did not render any topology nodes.");
   }
+
+  // An empty graph legitimately has no edges to wait for.
+  if (expectedEdgeCount === 0) {
+    return;
+  }
+
+  const deadline = Date.now() + 10000;
+
+  while (Date.now() < deadline) {
+    const renderedEdges = Array.from(
+      root.querySelectorAll<SVGPathElement>(".react-flow__edge-path"),
+    ).filter((path) => {
+      const pathData = path.getAttribute("d");
+      return Boolean(pathData?.trim());
+    });
+
+    if (renderedEdges.length >= expectedEdgeCount) {
+      return;
+    }
+
+    await waitForFrame();
+  }
+
+  const actualEdgeCount = Array.from(
+    root.querySelectorAll<SVGPathElement>(".react-flow__edge-path"),
+  ).filter((path) => {
+    const pathData = path.getAttribute("d");
+    return Boolean(pathData?.trim());
+  }).length;
+
+  throw new Error(
+    `React Flow rendered ${actualEdgeCount} edge path(s) with valid paths; expected ${expectedEdgeCount}.`,
+  );
 }
 
 /**
@@ -89,7 +141,11 @@ export async function createTopologySnapshot(
   let root: Root | undefined;
 
   try {
-    const { maxWidth, padding = 40, pixelRatio = 2 } = options;
+    const {
+      maxWidth,
+      padding = 40,
+      pixelRatio = 2,
+    } = options;
 
     if (!Number.isFinite(maxWidth) || maxWidth <= 0) {
       throw new Error("maxWidth must be a positive finite number.");
@@ -97,6 +153,10 @@ export async function createTopologySnapshot(
 
     if (!Number.isFinite(pixelRatio) || pixelRatio <= 0) {
       throw new Error("pixelRatio must be a positive finite number.");
+    }
+
+    if (!Number.isFinite(padding) || padding < 0) {
+      throw new Error("padding must be a non-negative finite number.");
     }
 
     const flowGraph = toFlowGraph({
@@ -112,29 +172,27 @@ export async function createTopologySnapshot(
     }
 
     const positionedGraph = layoutGraph(flowGraph);
-    const bounds = getTopologyExportBounds(positionedGraph, padding);
+    const bounds = getTopologyExportBounds(
+      { ...positionedGraph, nodes: toCanvasNodes(positionedGraph) },
+      padding,
+    );
+
+    if (
+      !Number.isFinite(bounds.width) ||
+      !Number.isFinite(bounds.height) ||
+      bounds.width <= 0 ||
+      bounds.height <= 0
+    ) {
+      throw new Error("The topology export bounds are invalid.");
+    }
 
     // Scale down only when the graph exceeds the requested export width.
     const scale = Math.min(1, maxWidth / bounds.width);
     const width = Math.ceil(bounds.width * scale);
     const height = Math.ceil(bounds.height * scale);
 
-    // Translate copied positions. The screen graph remains untouched.
-    const exportNodes = positionedGraph.nodes.map((node) => ({
-      ...node,
-      position: {
-        x: node.position.x - bounds.minX,
-        y: node.position.y - bounds.minY,
-      },
-      data: { ...node.data },
-    }));
-
-    const exportEdges = positionedGraph.edges.map((edge) => ({
-      ...edge,
-      data: edge.data ? { ...edge.data } : undefined,
-    }));
-
     container = document.createElement("div");
+    container.className = "topology-snapshot";
     container.setAttribute("aria-hidden", "true");
 
     Object.assign(container.style, {
@@ -148,35 +206,28 @@ export async function createTopologySnapshot(
       colorScheme: "light",
       pointerEvents: "none",
       zIndex: "-1",
-      ...LIGHT_THEME,
     });
+
+    for (const [property, value] of Object.entries(LIGHT_THEME)) {
+      container.style.setProperty(property, value);
+    }
 
     document.body.appendChild(container);
     root = createRoot(container);
 
-    await waitForReactFlow(container, (onInit) => {
+    await waitForReactFlow(container, positionedGraph.edges.length, (onInit) => {
       root!.render(
         <ReactFlowProvider>
-          <div style={{ width: `${width}px`, height: `${height}px` }}>
-            <ReactFlow
-              nodes={exportNodes}
-              edges={exportEdges}
-              nodeTypes={exportNodeTypes}
-              edgeTypes={edgeTypes}
-              minZoom={scale}
-              maxZoom={1}
-              defaultViewport={{ x: 0, y: 0, zoom: scale }}
-              fitView={false}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              elementsSelectable={false}
-              panOnDrag={false}
-              zoomOnScroll={false}
-              zoomOnPinch={false}
-              zoomOnDoubleClick={false}
-              onInit={onInit}
-            />
-          </div>
+          <TopologyCanvas
+            graph={positionedGraph}
+            expanded
+            exportViewport={{
+              x: -bounds.minX * scale || 0,
+              y: -bounds.minY * scale || 0,
+              zoom: scale,
+            }}
+            onInit={onInit}
+          />
         </ReactFlowProvider>,
       );
     });
@@ -185,6 +236,7 @@ export async function createTopologySnapshot(
       await document.fonts.ready;
     }
 
+    await waitForFrame();
     await waitForFrame();
 
     const dataUrl = await toPng(container, {

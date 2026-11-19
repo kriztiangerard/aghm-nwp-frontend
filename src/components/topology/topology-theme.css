@@ -1,0 +1,175 @@
+/*
+ * NWP-TOPO-003: light and dark tokens for topology nodes and edges.
+ *
+ * Every token is built from the shadcn theme variables in src/index.css
+ * (directly or through color-mix), so a palette change there carries through.
+ * Components read these through var(--topo-*) only and never use raw colours.
+ *
+ * The base block is declared on both :root and .dark. That makes var()
+ * references resolve again wherever .dark is applied, even below <html>, so
+ * dark cards never inherit light-mode text colours. The .dark block further
+ * down only overrides what differs.
+ */
+
+.topology-snapshot {
+  --accent: #f4f1f5;
+  --accent-foreground: #201923;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f1f5;
+  --destructive: #dc2626;
+  --ring: #a59aaa;
+  --chart-1: #57e7b3;
+  --chart-2: #00be88;
+  --chart-3: #009c74;
+  --chart-4: #007e63;
+  --chart-5: #005e4b;
+}
+
+:root,
+.dark,
+.topology-snapshot {
+  /*
+   * Glyph colours used on the role-coloured tiles. Both stay the same in light and dark mode:
+   * --topo-ink-light is near-white (0.977) and --topo-ink-dark is near-black (0.145).
+   */
+  --topo-ink-light: var(--primary-foreground);
+  --topo-ink-dark: var(--foreground);
+
+  /*
+   * Card surface. Cards are plain (shadcn card colours); only the icon tile
+   * and quantity chip carry the role colour.
+   *
+   * Measured text contrast on the card (light / dark):
+   *   main text (role, name, counts)  19.8 / 17.0   (AAA)
+   *   muted text (SKU, detail line)    5.1 /  6.9   (AA ≥ 4.5)
+   * Card text is never faded with opacity; that would lower these ratios.
+   */
+  --topo-card-bg: var(--card);
+  --topo-card-fg: var(--card-foreground);
+  --topo-card-muted: var(--muted-foreground);
+  --topo-card-border: var(--border);
+
+  /*
+   * Role colours for the icon tile (-bg) and the icon glyph on it (-fg).
+   * The quantity chip uses the same pair.
+   *
+   * Every pair is at least 7:1 in both modes, so the icon reads clearly.
+   *
+   * Measured contrast (light / dark):
+   *   gateway 7.7 / 8.3   firewall 7.9 / 8.0   controller 7.1 / 7.1
+   *   switch  8.0 / 8.0   access pt 13.1 / 13.1
+   *   client 16.1 / 14.3  internet 15.8 / 14.9
+   * The three greens sit at distinct lightness levels (dark, mid, light), so the
+   * controller, switch and access-point tiles stay distinguishable.
+   * Re-measure if the shadcn palette in index.css changes.
+   */
+  --topo-node-wan-bg: var(--accent-foreground);
+  --topo-node-wan-fg: var(--accent);
+  --topo-node-gateway-bg: color-mix(in oklch, var(--primary) 92%, black);
+  --topo-node-gateway-fg: var(--topo-ink-light);
+  --topo-node-firewall-bg: color-mix(
+    in oklch,
+    color-mix(in oklch, var(--primary) 45%, var(--destructive)) 80%,
+    black
+  );
+  --topo-node-firewall-fg: var(--topo-ink-light);
+  --topo-node-controller-bg: var(--chart-5);
+  --topo-node-controller-fg: var(--topo-ink-light);
+  --topo-node-switch-bg: var(--chart-2);
+  --topo-node-switch-fg: var(--topo-ink-dark);
+  --topo-node-access-point-bg: var(--chart-1);
+  --topo-node-access-point-fg: var(--topo-ink-dark);
+  --topo-node-client-bg: var(--secondary);
+  --topo-node-client-fg: var(--secondary-foreground);
+  --topo-node-default-bg: var(--muted);
+  --topo-node-default-fg: var(--foreground);
+
+  /* Edge strokes. Each variant also differs in width or dash, not colour alone. */
+  --topo-edge-copper: var(--muted-foreground);
+  --topo-edge-fiber: var(--primary);
+  --topo-edge-fiber-core: var(--background);
+  --topo-edge-poe: var(--chart-4);
+  --topo-edge-wireless: var(--chart-3);
+  --topo-edge-logical: var(--ring);
+  --topo-edge-label-bg: var(--background);
+  --topo-edge-label-fg: var(--foreground);
+
+  /*
+   * Badges: an opaque page-coloured pill with full-contrast text (about 19:1).
+   * The role colour appears only on the border and icon, which are not text and
+   * need just 3:1. This keeps badges readable on any card fill.
+   */
+  --topo-badge-bg: var(--background);
+  --topo-badge-text: var(--foreground);
+  --topo-badge-integrated: var(--primary);
+  --topo-badge-sunsetting: var(--destructive);
+
+  /*
+   * Floor zones (dashed areas grouping one floor's devices).
+   * The border uses --muted-foreground (about 4.6:1 on the page, above the 3:1
+   * needed for non-text). The label pill uses the client-card pair (≥14:1).
+   * The fill is translucent and sits below the edges, so it never hides a link.
+   */
+  --topo-zone-border: var(--muted-foreground);
+  --topo-zone-bg: color-mix(in oklch, var(--muted) 55%, transparent);
+  --topo-zone-label-bg: var(--secondary);
+  --topo-zone-label-fg: var(--secondary-foreground);
+}
+
+.dark {
+  /* --foreground is near-white in dark mode; the dark ink is the dark page colour. */
+  --topo-ink-dark: var(--background);
+
+  /* Dark --primary is already dark enough for light text (8.3:1). */
+  --topo-node-gateway-bg: var(--primary);
+  /* Dark --destructive is lighter, so the firewall mix needs more darkening (8.0:1). */
+  --topo-node-firewall-bg: color-mix(
+    in oklch,
+    color-mix(in oklch, var(--primary) 45%, var(--destructive)) 75%,
+    black
+  );
+
+  --topo-edge-fiber: var(--sidebar-primary);
+  --topo-edge-poe: var(--chart-2);
+  --topo-edge-wireless: var(--chart-1);
+  --topo-edge-logical: var(--muted-foreground);
+
+  --topo-badge-integrated: var(--sidebar-primary);
+}
+
+/* React Flow chrome follows the shadcn theme in both modes. */
+.topology-canvas .react-flow {
+  --xy-background-color: transparent;
+  --xy-background-pattern-color: var(--border);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: none;
+}
+
+/* Unknown roles render as type "default". Remove React Flow's built-in default-node box so the Card is the only frame. */
+.topology-canvas .react-flow__node-default {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+/* Handles only anchor edges; the graph is read-only, so they stay invisible. */
+.topology-canvas .react-flow__handle.topology-handle {
+  width: 6px;
+  height: 6px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

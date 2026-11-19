@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
-import { buildReportPdf } from "@/lib/report/buildReportPdf";
-import { createTopologySnapshot } from "@/components/topology/topology-snapshot";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
 import TopologyDiagram from "./TopologyDiagram";
@@ -86,6 +84,13 @@ export default function Report() {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const pdfGeneratingRef = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Return to the development comparison page when opened from QA fixtures.
+  const returnTo =
+    location.state?.returnTo === "/dev/comparison"
+      ? "/dev/comparison"
+      : "/comparison";
   const { result } = usePlanResult();
   const { choice, plan } = useSelectedPlan();
 
@@ -104,11 +109,11 @@ export default function Report() {
   }
 
   if (!choice || !plan) {
-    return <Navigate to="/comparison" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   if (!plan.complete) {
-    return <Navigate to="/comparison" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   const backendVendor = toBackendVendor(choice.vendor);
@@ -121,7 +126,7 @@ export default function Report() {
   );
 
   if (!backendPlan || !backendPlan.complete) {
-    return <Navigate to="/comparison" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   const report = buildReport(
@@ -135,7 +140,7 @@ export default function Report() {
 
   // The route guard and source engine plan must both confirm completeness.
   if (!report.planComplete) {
-    return <Navigate to="/comparison" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   const disclaimer = getDisclaimerBlock(result.engineResult.generatedAt);
@@ -156,60 +161,38 @@ const handleCsvDownload = () => {
   setIsCsvPreviewOpen(false);
 };
 
-  const handlePdfPreview = async () => {
+  const handlePdfPreview = () => {
     if (pdfGeneratingRef.current) return;
 
-    // Open synchronously to avoid popup blockers.
-    const previewTab = window.open("", "_blank");
+    const previewTab = window.open("/pdf-preview", "_blank");
+
+    if (!previewTab) {
+      setPdfError("The browser blocked the PDF preview tab.");
+      toast.error("The browser blocked the PDF preview tab.");
+      return;
+    }
 
     pdfGeneratingRef.current = true;
     setIsPdfGenerating(true);
     setPdfError(null);
+
     const toastId = toast.loading("Generating PDF report...");
 
-    try {
-      if (!previewTab) {
-        throw new Error("The browser blocked the PDF preview tab.");
-      }
-
-      previewTab.document.title = "Generating PDF...";
-      previewTab.document.body.textContent = "Generating PDF report...";
-
-      let topologySnapshot: string | null = null;
-
-      try {
-        const snapshot = await createTopologySnapshot(plan, {
-          maxWidth: 1200,
-          padding: 40,
-          pixelRatio: 2,
-        });
-
-        if (snapshot.status === "success") {
-          topologySnapshot = snapshot.dataUrl;
-        } else {
-          console.warn("Topology snapshot unavailable:", snapshot.reason);
-        }
-      } catch (snapshotError) {
-        console.warn("Topology snapshot failed:", snapshotError);
-      }
-
-      const blob = await buildReportPdf(report, topologySnapshot);
-
-      if (previewTab.closed) {
-        throw new Error("The PDF preview tab was closed.");
-      }
-
-      const now = new Date();
-      const timestamp = [
+    const now = new Date();
+    const timestamp =
+      [
         now.getFullYear(),
         String(now.getMonth() + 1).padStart(2, "0"),
         String(now.getDate()).padStart(2, "0"),
-      ].join("") + "-" + [
+      ].join("") +
+      "-" +
+      [
         String(now.getHours()).padStart(2, "0"),
         String(now.getMinutes()).padStart(2, "0"),
       ].join("");
 
-      const filename = [
+    const filename =
+      [
         "NWP",
         safeFileName(report.project.companyName),
         safeFileName(report.selectedVendor),
@@ -217,62 +200,66 @@ const handleCsvDownload = () => {
         timestamp,
       ].join("-") + ".pdf";
 
-      const url = URL.createObjectURL(blob);
-      previewTab.addEventListener(
-        "pagehide",
-        () => URL.revokeObjectURL(url),
-        { once: true },
-      );
+    let finished = false;
 
-      const doc = previewTab.document;
-      doc.title = filename;
-      doc.body.replaceChildren();
-      doc.body.style.margin = "0";
-      doc.body.style.fontFamily = "Arial, sans-serif";
-
-      const toolbar = doc.createElement("div");
-      toolbar.style.cssText =
-        "display:flex;align-items:center;justify-content:space-between;" +
-        "gap:16px;padding:12px 20px;background:#f3f4f6;";
-
-      const title = doc.createElement("strong");
-      title.textContent = "Network Planning Report";
-
-      const download = doc.createElement("a");
-      download.href = url;
-      download.download = filename;
-      download.textContent = "Download PDF";
-      download.style.cssText =
-        "background:#8200DA;color:white;padding:10px 16px;" +
-        "border-radius:6px;text-decoration:none;font-size:14px;";
-
-      toolbar.append(title, download);
-
-      const viewer = doc.createElement("iframe");
-      viewer.src = url;
-      viewer.title = "PDF report preview";
-      viewer.style.cssText =
-        "display:block;width:100%;height:calc(100vh - 64px);border:0;";
-
-      doc.body.append(toolbar, viewer);
-
-      toast.success("PDF report opened in a new tab.", {
-        id: toastId,
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error("PDF preview failed:", error);
-      setPdfError("Unable to open the PDF report. Please try again.");
-      toast.error("Unable to open the PDF report. Please try again.", {
-        id: toastId,
-      });
-      if (previewTab && !previewTab.closed) {
-        previewTab.close();
-      }
-    } finally {
+    const cleanup = () => {
+      window.removeEventListener("message", handlePreviewMessage);
+      window.clearTimeout(timeoutId);
       pdfGeneratingRef.current = false;
       setIsPdfGenerating(false);
-    }
+    };
+
+    const finish = (success: boolean) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+
+      if (success) {
+        toast.success("PDF report opened in a new tab.", {
+          id: toastId,
+          duration: 2000,
+        });
+      } else {
+        setPdfError("Unable to generate the PDF report. Please try again.");
+        toast.error("Unable to generate the PDF report. Please try again.", {
+          id: toastId,
+        });
+      }
+    };
+
+    const handlePreviewMessage = (event: MessageEvent) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== previewTab
+      ) {
+        return;
+      }
+
+      const type = event.data?.type;
+
+      if (type === "NWP_PDF_READY") {
+        previewTab.postMessage(
+          {
+            type: "NWP_PDF_DATA",
+            report,
+            plan,
+            filename,
+          },
+          window.location.origin,
+        );
+      } else if (type === "NWP_PDF_SUCCESS") {
+        finish(true);
+      } else if (type === "NWP_PDF_ERROR") {
+        finish(false);
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      console.error("PDF preview did not complete within 90 seconds.");
+      finish(false);
+    }, 90000);
+
+    window.addEventListener("message", handlePreviewMessage);
   };
 
   return (
@@ -289,7 +276,7 @@ const handleCsvDownload = () => {
 
         <button
           type="button"
-          onClick={() => navigate("/comparison")}
+          onClick={() => navigate(returnTo)}
           className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
         >
           ← Back to comparison

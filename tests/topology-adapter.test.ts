@@ -67,10 +67,17 @@ describe("topology adapter BOM name matching", () => {
       throw new Error("Expected available topology");
     }
 
-    expect(result.nodes[0].data.name).toBeUndefined();
+    // When no BOM line matches, the adapter displays the SKU
+    // instead of leaving the device name undefined.
+    expect(result.nodes[0].data.name).toBe("AP-TEST");
     expect(result.warnings).toContainEqual(
       expect.objectContaining({
         code: "BOM_LINE_NOT_FOUND",
+      }),
+    );
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: "PRODUCT_NAME_MISSING",
       }),
     );
   });

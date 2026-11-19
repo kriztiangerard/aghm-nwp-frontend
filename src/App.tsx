@@ -3,6 +3,7 @@ import SplashPage from './SplashPage'
 import Questionnaire from './components/questionnaire/Questionnaire'
 import ComparisonRoute from './components/comparison/comparison-route'
 import Report from './components/report/Report'
+import PdfPreview from './components/report/PdfPreview'
 import { PlanResultProvider } from './components/comparison/plan-result-context'
 import { SelectedPlanProvider } from './components/comparison/selected-plan-context'
 import { lazy, Suspense } from "react";
@@ -20,6 +21,7 @@ function App() {
             <Route path="/questionnaire" element={<Questionnaire />} />
             <Route path="/comparison" element={<ComparisonRoute />} />
             <Route path="/report" element={<Report />} />
+            <Route path="/pdf-preview" element={<PdfPreview />} />
             {/* Dev-only route */}
             {import.meta.env.DEV && (
               <Route path="/dev/comparison" element={<ComparisonDev />} />
