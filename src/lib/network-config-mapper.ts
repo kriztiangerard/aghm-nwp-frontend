@@ -64,10 +64,8 @@ export function mapFormToNetworkConfiguration(
           }
         : undefined,
 
-      existingCabling: data.existingNetwork.existingCabling as
-        | 'none_or_not_sure'
-        | 'cat5e_or_cat6'
-        | 'fiber',
+        existingCabling: (data.existingNetwork.existingCabling ?? 'none_or_not_sure') as 
+        'none_or_not_sure' | 'cat5e_or_cat6' | 'fiber',
     },
 
     internet: {
