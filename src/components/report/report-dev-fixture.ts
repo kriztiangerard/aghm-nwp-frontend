@@ -22,9 +22,11 @@ function bomLine(
     lineTotal: qty * unitPrice,
     status: "ACTIVE" as const,
     isGeneric: false,
-    priceSource: "manual" as const,
-    isStale: false,
-    priceUpdatedAt,
+    priceSource: category === "gateway" ? "manual" as const : "synchronized" as const,
+    isStale: category === "gateway",
+    priceUpdatedAt: category === "gateway"
+      ? "2026-09-01T00:00:00.000Z"
+      : priceUpdatedAt,
   };
 }
 

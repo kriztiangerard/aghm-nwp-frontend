@@ -50,7 +50,21 @@ const LIGHT_THEME = {
 
 function waitForFrame(): Promise<void> {
   return new Promise((resolve) => {
-    window.requestAnimationFrame(() => resolve());
+    let settled = false;
+
+    const complete = () => {
+      if (settled) return;
+      settled = true;
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
+
+    const frameId = window.requestAnimationFrame(complete);
+
+    // Background tabs may pause requestAnimationFrame indefinitely.
+    // Keep PDF snapshot generation moving when the source tab is inactive.
+    const timeoutId = window.setTimeout(complete, 100);
   });
 }
 

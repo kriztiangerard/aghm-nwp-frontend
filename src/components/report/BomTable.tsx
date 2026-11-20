@@ -167,7 +167,7 @@ export default function BomTable({ bom }: BomTableProps) {
                   )}
                 </div>
               </TableCell>
-              <TableCell className="whitespace-nowrap">{line.sku}</TableCell>
+              <TableCell className="break-all whitespace-normal">{line.sku}</TableCell>
               <TableCell className="whitespace-nowrap">
                 {line.isGeneric ? "Not specified" : line.vendor}
               </TableCell>

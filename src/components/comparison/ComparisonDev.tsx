@@ -249,7 +249,7 @@ export default function ComparisonDev() {
     setContinued({ choice, plan });
 
     const isReportQaScenario =
-      name === "pricingStates" || name === "longBom";
+      name === "pricingStates" || name === "longBom" || name === "bigBom" || name === "lineStates";
 
     const isTopologyScenario = name.startsWith("topo003:");
     if (!plansData || (name !== "happy" && !isReportQaScenario && !isTopologyScenario)) {

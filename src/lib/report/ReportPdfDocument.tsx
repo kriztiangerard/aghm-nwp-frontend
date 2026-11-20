@@ -9,8 +9,10 @@ import {
   Font,
 } from "@react-pdf/renderer";
 
-import interRegular from "@fontsource/inter/files/inter-latin-ext-400-normal.woff?url";
-import interBold from "@fontsource/inter/files/inter-latin-ext-700-normal.woff?url";
+import interRegular from "@fontsource/inter/files/inter-latin-400-normal.woff?url";
+import interBold from "@fontsource/inter/files/inter-latin-700-normal.woff?url";
+import interRegularExtended from "@fontsource/inter/files/inter-latin-ext-400-normal.woff?url";
+import interBoldExtended from "@fontsource/inter/files/inter-latin-ext-700-normal.woff?url";
 
 Font.register({
   family: "Inter",
@@ -19,19 +21,30 @@ Font.register({
     { src: interBold, fontWeight: 700 },
   ],
 });
+Font.register({
+  family: "Inter Latin Ext",
+  fonts: [
+    { src: interRegularExtended, fontWeight: 400 },
+    { src: interBoldExtended, fontWeight: 700 },
+  ],
+});
 import type { ReportViewModel, ReportBomLine } from "./report-view-model";
+
+const interFontFamilies = ["Inter", "Inter Latin Ext"];
 
 const styles = StyleSheet.create({
   page: {
     padding: 32,
     fontSize: 9,
-    fontFamily: "Inter",
+    fontFamily: interFontFamilies,
+    fontWeight: 400,
     color: "#1F2937",
   },
   title: {
     fontSize: 23,
-    fontWeight: "bold",
-    color: "#6E11B0",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
+    color: "#8200DA",
     marginBottom: 12,
   },
   subtitle: {
@@ -45,7 +58,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     marginBottom: 8,
     color: "#111827",
     paddingBottom: 5,
@@ -63,7 +77,8 @@ const styles = StyleSheet.create({
   },
   disclaimerTitle: {
     fontSize: 11,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     color: "#9A3412",
     marginBottom: 7,
   },
@@ -92,7 +107,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     paddingVertical: 8,
     paddingHorizontal: 5,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     color: "#374151",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -163,7 +179,17 @@ function Section({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle} minPresenceAhead={85}>
+      <Text
+        style={[
+          styles.sectionTitle,
+          {
+            borderLeftWidth: 4,
+            borderLeftColor: "#8200DA",
+            paddingLeft: 10,
+          },
+        ]}
+        minPresenceAhead={85}
+      >
         {title}
       </Text>
       {children}
@@ -185,6 +211,15 @@ function BomRow({
         ? "Manual"
         : "Not specified";
 
+  const validPriceReferences = (line.priceReferences ?? []).filter((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch {
+      return false;
+    }
+  });
+
   return (
     <View style={styles.tableRow} wrap={false}>
       <View style={{ width: "22%" }}>
@@ -198,8 +233,8 @@ function BomRow({
       <Text style={[styles.tableCell, { width: "8%" }]}>
         {line.qty}
       </Text>
-      <View style={{ width: "22%" }}>
-        <Text style={styles.tableCell}>
+      <View style={{ width: "22%", alignItems: "flex-end" }}>
+        <Text style={[styles.tableCell, { textAlign: "right" }]}>
           {money(line.unitPrice, currency)}
         </Text>
         <Text style={styles.tableCell}>{source}</Text>
@@ -208,11 +243,21 @@ function BomRow({
         )}
         {line.priceUpdatedAt && (
           <Text style={styles.tableCell}>
-            Last verified {line.priceUpdatedAt}
+            Last verified {new Date(line.priceUpdatedAt).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
           </Text>
         )}
+        {validPriceReferences.map((url, index) => (
+          <Link key={`${url}-${index}`} src={url} style={styles.link}>
+            {`Price reference ${index + 1}`}
+          </Link>
+        ))}
       </View>
-      <Text style={[styles.tableCell, { width: "20%" }]}>
+      <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
         {money(line.lineTotal, currency)}
       </Text>
     </View>
@@ -431,47 +476,96 @@ export function ReportPdfDocument({
             <Text>Diagram unavailable</Text>
           )}
         </Section>
+      </Page>
 
-        <Section title="Network Equipment BOM">
-          <View style={styles.tableHeader} fixed>
-            <Text style={[styles.tableCell, { width: "22%" }]}>
-              Category / SKU
-            </Text>
-            <Text style={[styles.tableCell, { width: "28%" }]}>
-              Device / Vendor
-            </Text>
-            <Text style={[styles.tableCell, { width: "8%" }]}>
-              Qty
-            </Text>
-            <Text style={[styles.tableCell, { width: "22%" }]}>
-              Unit price
-            </Text>
-            <Text style={[styles.tableCell, { width: "20%" }]}>
-              Line total
-            </Text>
+      <Page
+        size="A4"
+        style={styles.page}
+        layout={({ children }) => (
+          <View style={{ flex: 1 }}>
+            <View style={{ marginBottom: 8 }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#8200DA",
+                    paddingLeft: 10,
+                  },
+                ]}
+              >
+                Network Equipment BOM
+              </Text>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableCell, { width: "22%" }]}>
+                  Category / SKU
+                </Text>
+                <Text style={[styles.tableCell, { width: "28%" }]}>
+                  Device / Vendor
+                </Text>
+                <Text style={[styles.tableCell, { width: "8%" }]}>
+                  Qty
+                </Text>
+                <Text style={[styles.tableCell, { width: "22%", textAlign: "right" }]}>
+                  Unit price
+                </Text>
+                <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
+                  Line total
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexGrow: 1 }}>{children}</View>
           </View>
-          {report.bom.lines.map((line, index) => (
-            <BomRow
-              key={index}
-              line={line}
-              currency={report.bom.currency}
-            />
-          ))}
-          <View style={styles.row} wrap={false}>
-            <Text style={styles.label}>
-              {report.bom.totalIsPartial ? "Total (partial)" : "Total"}
-            </Text>
-            <Text style={styles.value}>
-              {money(report.bom.total, report.bom.currency)}
-            </Text>
-          </View>
-          {report.bom.totalIsPartial && (
-            <Text style={styles.note}>
-              Some equipment prices are unavailable. The total includes priced items only.
-            </Text>
-          )}
-        </Section>
+        )}
+      >
+        {report.bom.lines.map((line, index) => (
+          <BomRow
+            key={index}
+            line={line}
+            currency={report.bom.currency}
+          />
+        ))}
+        <View
+          style={{
+            flexDirection: "row",
+            borderTopWidth: 1,
+            borderTopColor: "#9CA3AF",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#E5E7EB",
+            backgroundColor: "#F9FAFB",
+            paddingVertical: 9,
+            paddingHorizontal: 5,
+          }}
+          wrap={false}
+        >
+          <Text
+            style={{
+              width: "80%",
+              fontWeight: "bold",
+              fontSize: 8,
+            }}
+          >
+            Equipment subtotal (known prices)
+          </Text>
+          <Text
+            style={{
+              width: "20%",
+              textAlign: "right",
+              fontWeight: "bold",
+              fontSize: 8,
+            }}
+          >
+            {money(report.bom.total, report.bom.currency)}
+          </Text>
+        </View>
+        {report.bom.totalIsPartial && (
+          <Text style={styles.note}>
+            Some equipment prices are unavailable. The total includes priced items only.
+          </Text>
+        )}
+      </Page>
 
+      <Page size="A4" style={styles.page} wrap>
         <Section title="Installation Materials Summary">
           <InstallationSummary materials={report.installationMaterials} />
         </Section>
