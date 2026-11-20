@@ -89,7 +89,7 @@ export function toCanvasNodes(
   return [...zoneNodes, ...deviceNodes];
 }
 
-/** Edges carry no details panel, so they are neither selectable nor focusable. */
+/** Interactive canvas only: edges carry no details panel, so they are neither selectable nor focusable. */
 const toCanvasEdges = (graph: PositionedFlowGraph): TopologyFlowEdge[] =>
   graph.edges.map((edge) => ({
     ...edge,
@@ -127,7 +127,12 @@ export function TopologyCanvas({
     () => toCanvasNodes(graph, { interactive }),
     [graph, interactive],
   );
-  const canvasEdges = useMemo(() => toCanvasEdges(graph), [graph]);
+  // The PDF snapshot keeps the layout's edges exactly as they are (it is not interactive, and
+  // tests/topology-snapshot.test.tsx checks the exported edges equal the screen layout's).
+  const canvasEdges = useMemo(
+    () => (interactive ? toCanvasEdges(graph) : graph.edges),
+    [graph, interactive],
+  );
 
   // NWP-TOPO-004 AC4–AC6: the selected node's details.
   const [details, setDetails] = useState<NodeDetails | null>(null);
