@@ -329,7 +329,8 @@ function Questionnaire() {
               <Separator />
 
               <ScrollArea className="min-h-0 lg:h-0 lg:flex-1">
-              <CardContent className="space-y-6 pt-6">
+              {/* pb-10: room between the last field (and its open dropdown) and the Back/Next bar. */}
+              <CardContent className="space-y-6 pt-6 pb-10">
                 {submitError && (
                   <div
                     role="alert"
@@ -359,7 +360,7 @@ function Questionnaire() {
 
               <Separator />
 
-              <CardContent className="flex shrink-0 justify-between py-4">
+              <CardContent className="flex shrink-0 justify-between gap-4 py-5">
                 <Button
                   type="button"
                   variant="outline"

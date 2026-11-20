@@ -57,6 +57,13 @@ const LABEL_OVERRIDES: Record<string, string> = {
   enabled: 'Enabled',
 }
 
+/** Labels for the yes/no `enabled` flag of each device group in the Devices step. */
+const ENABLED_LABELS: Record<string, string> = {
+  voip: 'VoIP phones',
+  ipCameras: 'IP cameras',
+  otherNetworkDevices: 'Other network-connected devices',
+}
+
 const VALUE_OVERRIDES: Record<string, string> = {
   one: 'One site',
   two_or_more: 'Two or more sites',
@@ -272,14 +279,25 @@ const flattenSummaryItems = (obj: Record<string, unknown>, parentKey = ''): Summ
       const nestedData = value as Record<string, unknown>
 
       if ('enabled' in nestedData) {
+        // Questionnaire UI fix: each yes/no answer is labelled with its own
+        // question ("VoIP phones: No"), not a generic "Enabled".
+        const enabledLabel = ENABLED_LABELS[key]
+
         if (nestedData.enabled === false) {
-          items.push({ id: `${key}.enabled`, label: prettifyKey('enabled'), value: 'No' })
+          items.push({ id: `${key}.enabled`, label: enabledLabel, value: 'No' })
           return
         }
 
         if (nestedData.enabled !== true) {
           return
         }
+
+        items.push({ id: `${key}.enabled`, label: enabledLabel, value: 'Yes' })
+        const details = Object.fromEntries(
+          Object.entries(nestedData).filter(([nestedKey]) => nestedKey !== 'enabled'),
+        )
+        items.push(...flattenSummaryItems(details, key))
+        return
       }
     }
 

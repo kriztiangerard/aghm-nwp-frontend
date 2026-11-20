@@ -16,7 +16,7 @@ function SummaryPanel({ sectionKey }: SummaryPanelProps) {
   return (
     <aside
       aria-labelledby="section-summary-title"
-      className="flex max-h-[calc(100dvh-6rem)] min-h-[18rem] flex-col overflow-hidden border border-border/70 bg-background p-4 shadow-sm lg:sticky lg:top-8"
+      className="flex min-w-0 max-h-[calc(100dvh-6rem)] min-h-[18rem] flex-col overflow-hidden border border-border/70 bg-background p-4 shadow-sm lg:sticky lg:top-8"
     >
       <div className="mb-4 flex items-center gap-3 border-b border-border/70 pb-3">
         <div className="rounded-md bg-primary/10 p-2 text-primary">
@@ -48,19 +48,26 @@ function SummaryPanel({ sectionKey }: SummaryPanelProps) {
 
               <dl className="space-y-3">
                 {section.items.map((item, index) => (
-                  <div key={item.id ?? `${section.title}-${item.label}-${index}`} className="space-y-1">
-                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  <div key={item.id ?? `${section.title}-${item.label}-${index}`} className="min-w-0 space-y-1">
+                    <dt className="break-words text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                       {item.label}
                     </dt>
                     <dd>
                       {Array.isArray(item.value) ? (
                         <div className="flex flex-wrap gap-2">
                           {item.value.map((valueItem) => (
-                            <Badge key={`${item.label}-${valueItem}`}>{valueItem}</Badge>
+                            <Badge
+                              key={`${item.label}-${valueItem}`}
+                              className="h-auto max-w-full whitespace-normal break-words text-left"
+                            >
+                              {valueItem}
+                            </Badge>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-sm text-foreground">{item.value}</span>
+                        <span className="block whitespace-pre-line break-words text-sm text-foreground">
+                          {item.value}
+                        </span>
                       )}
                     </dd>
                   </div>

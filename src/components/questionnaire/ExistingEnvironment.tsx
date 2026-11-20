@@ -127,8 +127,8 @@ function ExistingEnvironment() {
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="none">No</SelectItem>
                   <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="none">No</SelectItem>
                   <SelectItem value="not_sure">Not sure</SelectItem>
                 </SelectContent>
               </Select>
