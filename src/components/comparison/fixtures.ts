@@ -125,6 +125,19 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
       ]),
     },
   },
+  // NWP-TOPO-004 AC4: a rendered hardware node with no price. Open the details panel on the access
+  // point node; its unit price must read "Price on request" (the gateway shows ₱3,500.00 for contrast).
+  priceOnRequest: (() => {
+    const bom = [
+      line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
+      line({ sku: "EAP610", name: "Omada AX1800 Ceiling AP", category: "Access Point", quantity: 2, unitPrice: null }),
+    ];
+    return {
+      "TP-Link Omada": {
+        "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", bom, { topology: topologyForBom(bom) }),
+      },
+    };
+  })(),
   lineStates: {                                         // AC 4: stale, manual, Sunsetting, generic
     "TP-Link Omada": {
       "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", [
