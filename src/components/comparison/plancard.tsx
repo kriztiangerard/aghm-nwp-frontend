@@ -114,8 +114,6 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       <Separator />
 
       <CardContent className="flex-1 pt-5 space-y-6">
-        <TopologyGraph planData={planData} />
-
         {!planData.complete && (
           <div
             role="alert"
@@ -131,6 +129,10 @@ export const PlanCard: React.FC<PlanCardProps> = ({
               ))}
             </ul>
           </div>
+        )}
+
+        {planData.complete && (
+          <TopologyGraph planData={planData} />
         )}
 
         <ComponentTable bom={planData.bom} currency={planData.currency} />

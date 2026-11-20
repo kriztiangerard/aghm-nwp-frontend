@@ -245,6 +245,21 @@ export default function ComparisonDev() {
     }
   };
 
+  const openComparisonRoute = () => {
+    if (!plansData) return;
+
+    clear();
+    setResult({
+      engineResult: reportDevEngineResult,
+      questionnaireData: reportDevQuestionnaireData,
+      plansData,
+      defaultVendors,
+    });
+    navigate("/comparison", {
+      state: { returnTo: "/dev/comparison" },
+    });
+  };
+
   const handleContinue = (choice: PlanChoice, plan: NetworkPlanData) => {
     setContinued({ choice, plan });
 
@@ -337,6 +352,16 @@ export default function ComparisonDev() {
             {scenarioName}
           </button>
         ))}
+
+        {name === "happy" && (
+          <button
+            type="button"
+            onClick={openComparisonRoute}
+            className="rounded border px-3 py-1 text-sm"
+          >
+            Open comparison route
+          </button>
+        )}
 
         <button
           type="button"
