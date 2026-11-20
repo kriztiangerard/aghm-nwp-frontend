@@ -67,6 +67,11 @@ const topologyForBom = (bom: BomLineItem[]): NonNullable<NetworkPlanData["topolo
   };
 };
 
+const bigBom = [
+  line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
+  ...Array.from({ length: 39 }, (_, i) => line({ sku: `SW-${i + 1}`, name: `Test switch ${i + 1}`, category: "Switch", quantity: 1, unitPrice: 1000 + i })),
+];
+
 const omadaCEBom = [
   line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
   line({ sku: "EAP610", name: "Omada AX1800 Ceiling AP", category: "Access Point", quantity: 2, unitPrice: 5200 }),
@@ -98,6 +103,10 @@ const unifiHP = plan("Ubiquiti UniFi", "High-Performance", unifiHPBom, {
 });
 
 export const scenarios: Record<string, VendorPlansPayload | undefined> = {
+  bigBom: { "TP-Link Omada": {
+  "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", bigBom, { topology: topologyForBom(bigBom) }),
+  "High-Performance": plan("TP-Link Omada", "High-Performance", bigBom, { topology: topologyForBom(bigBom) }),
+  } },
   loading: undefined,                                   // AC 1 loading state
   empty: {},                                            // AC 1 empty state
   happy: {                                              // AC 1, 2, 3, 4, 5, 6
@@ -203,4 +212,6 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
   ...engineScenarios, // engineSample, engineSampleComplete, engineSampleMixed
   topo002Stress: topo002StressScenario,
   ...topo003QaScenarios, // TOPO-003 QA: one button per fixture, "topo003:<name>"
+
+
 };

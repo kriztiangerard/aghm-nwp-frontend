@@ -9,8 +9,10 @@ import {
   Font,
 } from "@react-pdf/renderer";
 
-import interRegular from "@fontsource/inter/files/inter-latin-ext-400-normal.woff?url";
-import interBold from "@fontsource/inter/files/inter-latin-ext-700-normal.woff?url";
+import interRegular from "@fontsource/inter/files/inter-latin-400-normal.woff?url";
+import interBold from "@fontsource/inter/files/inter-latin-700-normal.woff?url";
+import interRegularExtended from "@fontsource/inter/files/inter-latin-ext-400-normal.woff?url";
+import interBoldExtended from "@fontsource/inter/files/inter-latin-ext-700-normal.woff?url";
 
 Font.register({
   family: "Inter",
@@ -19,18 +21,29 @@ Font.register({
     { src: interBold, fontWeight: 700 },
   ],
 });
+Font.register({
+  family: "Inter Latin Ext",
+  fonts: [
+    { src: interRegularExtended, fontWeight: 400 },
+    { src: interBoldExtended, fontWeight: 700 },
+  ],
+});
 import type { ReportViewModel, ReportBomLine } from "./report-view-model";
+
+const interFontFamilies = ["Inter", "Inter Latin Ext"];
 
 const styles = StyleSheet.create({
   page: {
     padding: 32,
     fontSize: 9,
-    fontFamily: "Inter",
+    fontFamily: interFontFamilies,
+    fontWeight: 400,
     color: "#1F2937",
   },
   title: {
     fontSize: 23,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     color: "#8200DA",
     marginBottom: 12,
   },
@@ -45,7 +58,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     marginBottom: 8,
     color: "#111827",
     paddingBottom: 5,
@@ -63,7 +77,8 @@ const styles = StyleSheet.create({
   },
   disclaimerTitle: {
     fontSize: 11,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     color: "#9A3412",
     marginBottom: 7,
   },
@@ -92,7 +107,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     paddingVertical: 8,
     paddingHorizontal: 5,
-    fontWeight: "bold",
+    fontFamily: interFontFamilies,
+    fontWeight: 700,
     color: "#374151",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -460,72 +476,96 @@ export function ReportPdfDocument({
             <Text>Diagram unavailable</Text>
           )}
         </Section>
+      </Page>
 
-        <Section title="Network Equipment BOM">
-          <View style={styles.tableHeader} fixed>
-            <Text style={[styles.tableCell, { width: "22%" }]}>
-              Category / SKU
-            </Text>
-            <Text style={[styles.tableCell, { width: "28%" }]}>
-              Device / Vendor
-            </Text>
-            <Text style={[styles.tableCell, { width: "8%" }]}>
-              Qty
-            </Text>
-            <Text style={[styles.tableCell, { width: "22%", textAlign: "right" }]}>
-              Unit price
-            </Text>
-            <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
-              Line total
-            </Text>
+      <Page
+        size="A4"
+        style={styles.page}
+        layout={({ children }) => (
+          <View style={{ flex: 1 }}>
+            <View style={{ marginBottom: 8 }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#8200DA",
+                    paddingLeft: 10,
+                  },
+                ]}
+              >
+                Network Equipment BOM
+              </Text>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableCell, { width: "22%" }]}>
+                  Category / SKU
+                </Text>
+                <Text style={[styles.tableCell, { width: "28%" }]}>
+                  Device / Vendor
+                </Text>
+                <Text style={[styles.tableCell, { width: "8%" }]}>
+                  Qty
+                </Text>
+                <Text style={[styles.tableCell, { width: "22%", textAlign: "right" }]}>
+                  Unit price
+                </Text>
+                <Text style={[styles.tableCell, { width: "20%", textAlign: "right" }]}>
+                  Line total
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexGrow: 1 }}>{children}</View>
           </View>
-          {report.bom.lines.map((line, index) => (
-            <BomRow
-              key={index}
-              line={line}
-              currency={report.bom.currency}
-            />
-          ))}
-          <View
+        )}
+      >
+        {report.bom.lines.map((line, index) => (
+          <BomRow
+            key={index}
+            line={line}
+            currency={report.bom.currency}
+          />
+        ))}
+        <View
+          style={{
+            flexDirection: "row",
+            borderTopWidth: 1,
+            borderTopColor: "#9CA3AF",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#E5E7EB",
+            backgroundColor: "#F9FAFB",
+            paddingVertical: 9,
+            paddingHorizontal: 5,
+          }}
+          wrap={false}
+        >
+          <Text
             style={{
-              flexDirection: "row",
-              borderTopWidth: 1,
-              borderTopColor: "#9CA3AF",
-              borderBottomWidth: 0.5,
-              borderBottomColor: "#E5E7EB",
-              backgroundColor: "#F9FAFB",
-              paddingVertical: 9,
-              paddingHorizontal: 5,
+              width: "80%",
+              fontWeight: "bold",
+              fontSize: 8,
             }}
-            wrap={false}
           >
-            <Text
-              style={{
-                width: "80%",
-                fontWeight: "bold",
-                fontSize: 8,
-              }}
-            >
-              Equipment subtotal (known prices)
-            </Text>
-            <Text
-              style={{
-                width: "20%",
-                textAlign: "right",
-                fontWeight: "bold",
-                fontSize: 8,
-              }}
-            >
-              {money(report.bom.total, report.bom.currency)}
-            </Text>
-          </View>
-          {report.bom.totalIsPartial && (
-            <Text style={styles.note}>
-              Some equipment prices are unavailable. The total includes priced items only.
-            </Text>
-          )}
-        </Section>
+            Equipment subtotal (known prices)
+          </Text>
+          <Text
+            style={{
+              width: "20%",
+              textAlign: "right",
+              fontWeight: "bold",
+              fontSize: 8,
+            }}
+          >
+            {money(report.bom.total, report.bom.currency)}
+          </Text>
+        </View>
+        {report.bom.totalIsPartial && (
+          <Text style={styles.note}>
+            Some equipment prices are unavailable. The total includes priced items only.
+          </Text>
+        )}
+      </Page>
 
+      <Page size="A4" style={styles.page} wrap>
         <Section title="Installation Materials Summary">
           <InstallationSummary materials={report.installationMaterials} />
         </Section>
