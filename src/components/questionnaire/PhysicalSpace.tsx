@@ -288,12 +288,12 @@ function PhysicalSpace() {
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="no">
-                    No
-                  </SelectItem>
-
                   <SelectItem value="yes">
                     Yes
+                  </SelectItem>
+
+                  <SelectItem value="no">
+                    No
                   </SelectItem>
                 </SelectContent>
               </Select>

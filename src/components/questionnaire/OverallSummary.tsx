@@ -57,7 +57,7 @@ function OverallSummary() {
                         <dt className="text-sm font-medium text-foreground">
                           {item.label}
                         </dt>
-                        <dd className="text-sm text-muted-foreground">
+                        <dd className="min-w-0 whitespace-pre-line break-words text-sm text-muted-foreground">
                           {Array.isArray(item.value)
                             ? item.value.join(', ')
                             : item.value || 'Not provided'}

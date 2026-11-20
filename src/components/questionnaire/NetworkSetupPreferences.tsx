@@ -84,8 +84,8 @@ function NetworkSetupPreferences() {
                   )}
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="no">No</SelectItem>
                   <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
                 </SelectContent>
               </Select>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -114,8 +114,8 @@ function NetworkSetupPreferences() {
                   )}
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="no">No</SelectItem>
                   <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
                   <SelectItem value="not_sure">Not sure</SelectItem>
                 </SelectContent>
               </Select>
