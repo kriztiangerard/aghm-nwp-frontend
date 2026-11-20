@@ -144,3 +144,19 @@ Use a clear and descriptive commit message.
 ### 8. Wait for Approval
 - Do not merge the PR yourself.
 - Wait for the required reviewers to review and approve the PR.
+
+## PDF Library Selection
+
+**Selected library:** `@react-pdf/renderer`
+
+We selected `@react-pdf/renderer` because it supports client-side PDF
+generation using React components. This allows us to build reusable report
+sections and tables while keeping the implementation consistent with our
+React and TypeScript application.
+
+The library also supports automatic page wrapping, which is useful for
+network planning reports containing long Bills of Materials (BOMs).
+
+The PDF implementation is located in:
+- `src/lib/report/ReportPdfDocument.tsx` — PDF document layout.
+- `src/lib/report/buildReportPdf.tsx` — Browser-side PDF generation.

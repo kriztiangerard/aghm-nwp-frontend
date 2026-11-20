@@ -67,6 +67,11 @@ const topologyForBom = (bom: BomLineItem[]): NonNullable<NetworkPlanData["topolo
   };
 };
 
+const bigBom = [
+  line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
+  ...Array.from({ length: 39 }, (_, i) => line({ sku: `SW-${i + 1}`, name: `Test switch ${i + 1}`, category: "Switch", quantity: 1, unitPrice: 1000 + i })),
+];
+
 const omadaCEBom = [
   line({ sku: "ER605", name: "Omada Gigabit VPN Router", category: "Gateway", quantity: 1, unitPrice: 3500 }),
   line({ sku: "EAP610", name: "Omada AX1800 Ceiling AP", category: "Access Point", quantity: 2, unitPrice: 5200 }),
@@ -98,6 +103,10 @@ const unifiHP = plan("Ubiquiti UniFi", "High-Performance", unifiHPBom, {
 });
 
 export const scenarios: Record<string, VendorPlansPayload | undefined> = {
+  bigBom: { "TP-Link Omada": {
+  "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", bigBom, { topology: topologyForBom(bigBom) }),
+  "High-Performance": plan("TP-Link Omada", "High-Performance", bigBom, { topology: topologyForBom(bigBom) }),
+  } },
   loading: undefined,                                   // AC 1 loading state
   empty: {},                                            // AC 1 empty state
   happy: {                                              // AC 1, 2, 3, 4, 5, 6
@@ -126,6 +135,72 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
       ]),
     },
   },
+  pricingStates: {
+    "TP-Link Omada": {
+      "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", [
+        line({
+          sku: "QA-MANUAL-STALE",
+          name: "QA Gateway - Stale Manual Price",
+          category: "Gateway",
+          quantity: 1,
+          unitPrice: 3500,
+          priceSource: "manual",
+          isStale: true,
+          priceUpdatedAt: "2026-09-01",
+        }),
+        line({
+          sku: "QA-SYNC-FRESH",
+          name: "QA Access Point - Fresh Synchronized Price",
+          category: "Access Point",
+          quantity: 2,
+          unitPrice: 5200,
+          priceSource: "synchronized",
+          isStale: false,
+          priceUpdatedAt: "2026-11-14",
+        }),
+        line({
+          sku: "QA-MANUAL-FRESH",
+          name: "QA Switch - Fresh Manual Price",
+          category: "Switch",
+          quantity: 1,
+          unitPrice: 4100,
+          priceSource: "manual",
+          isStale: false,
+          priceUpdatedAt: "2026-11-14",
+        }),
+        line({
+          sku: "QA-SYNC-STALE",
+          name: "QA Controller - Stale Synchronized Price",
+          category: "Controller",
+          quantity: 1,
+          unitPrice: 6500,
+          priceSource: "synchronized",
+          isStale: true,
+          priceUpdatedAt: "2026-08-15",
+        }),
+      ]),
+    },
+  },
+  longBom: {
+    "TP-Link Omada": {
+      "Cost-Efficient": plan(
+        "TP-Link Omada",
+        "Cost-Efficient",
+        Array.from({ length: 75 }, (_, index) =>
+          line({
+            sku: `QA-BOM-${String(index + 1).padStart(3, "0")}`,
+            name: `QA Pagination Device ${index + 1}`,
+            category: "Switch",
+            quantity: 1,
+            unitPrice: 1000 + index * 50,
+            priceSource: "manual",
+            isStale: false,
+            priceUpdatedAt: "2026-11-14",
+          }),
+        ),
+      ),
+    },
+  },
   incomplete: {                                         // AC 4: unmet list, no "complete" check mark
     "TP-Link Omada": {
       "Cost-Efficient": plan("TP-Link Omada", "Cost-Efficient", omadaCE.bom, {
@@ -137,4 +212,6 @@ export const scenarios: Record<string, VendorPlansPayload | undefined> = {
   ...engineScenarios, // engineSample, engineSampleComplete, engineSampleMixed
   topo002Stress: topo002StressScenario,
   ...topo003QaScenarios, // TOPO-003 QA: one button per fixture, "topo003:<name>"
+
+
 };
