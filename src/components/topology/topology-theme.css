@@ -173,3 +173,22 @@
   opacity: 0;
   pointer-events: none;
 }
+/*
+ * NWP-TOPO-004 AC4/AC6: selectable device nodes. A pointer cursor shows they
+ * open details; keyboard focus and the selected node get a visible ring
+ * (React Flow's own focus outline is removed in favour of this one).
+ */
+.topology-canvas .react-flow__node.selectable {
+  cursor: pointer;
+  border-radius: 0.75rem;
+}
+
+.topology-canvas .react-flow__node.selectable:focus {
+  outline: none;
+}
+
+.topology-canvas .react-flow__node.selectable:focus-visible,
+.topology-canvas .react-flow__node.selectable.selected {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
