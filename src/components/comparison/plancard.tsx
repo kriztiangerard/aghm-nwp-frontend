@@ -131,7 +131,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           </div>
         )}
 
-        {(planData.complete || planData.topology) && (
+        {planData.complete && (
           <TopologyGraph planData={planData} />
         )}
 
