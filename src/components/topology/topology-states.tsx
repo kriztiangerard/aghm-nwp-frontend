@@ -3,6 +3,7 @@ import { AlertTriangle, Network } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { consumeFault } from "./topology-fault";
 
 /**
  * NWP-TOPO-006: loading, empty and error states for the topology panel.
@@ -111,6 +112,8 @@ export class TopologyErrorBoundary extends Component<BoundaryProps, BoundaryStat
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[topology] render failed", error, info.componentStack);
+    // AC3 QA: an injected adapter/render fault fires once, so "Try again" recovers.
+    consumeFault();
   }
 
   private reset = () => this.setState({ error: null });

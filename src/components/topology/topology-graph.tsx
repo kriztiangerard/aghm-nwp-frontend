@@ -36,6 +36,11 @@ import { TopologyLegend } from "./topology-legend";
 import { buildNodeDetails, type NodeDetails } from "./node-details";
 import { NodeDetailsSheet } from "./node-details-sheet";
 import {
+  consumeFault,
+  injectedFaultError,
+  shouldInjectFault,
+} from "./topology-fault";
+import {
   TopologyEmptyState,
   TopologyErrorBoundary,
   TopologyErrorState,
@@ -316,14 +321,14 @@ function TopologyGraphContent({
   // The per-floor split (revised AC5/AC10, AC11) happens inside layoutGraph,
   // so it applies however the layout is called. An adapter error thrown here
   // is caught by TopologyErrorBoundary (AC3).
-  const adapted = useMemo(
-    () =>
-      adaptWithTiming({
-        bom: planData.bom,
-        topology: planData.topology,
-      }),
-    [planData.bom, planData.topology],
-  );
+  const adapted = useMemo(() => {
+    // AC3 QA (dev only): ?topologyFault=adapter
+    if (shouldInjectFault("adapter")) throw injectedFaultError("adapter");
+    return adaptWithTiming({
+      bom: planData.bom,
+      topology: planData.topology,
+    });
+  }, [planData.bom, planData.topology]);
   const graph = adapted.graph;
 
   const [workerResult, setWorkerResult] = useState<{
@@ -338,10 +343,13 @@ function TopologyGraphContent({
   useEffect(() => {
     if (graph.status !== "available") return;
 
-    const worker = new Worker(
-      new URL("./layout.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    // AC3 QA (dev only): ?topologyFault=worker loads a script that does not
+    // exist, so worker.onerror fires. The real URL must stay a literal for Vite.
+    const worker = shouldInjectFault("worker")
+      ? new Worker("/__nwp-missing-layout-worker__.js", { type: "module" })
+      : new Worker(new URL("./layout.worker.ts", import.meta.url), {
+          type: "module",
+        });
 
     const requestId = ++nextLayoutRequestId;
     const postedAt = timingNow();
@@ -363,6 +371,7 @@ function TopologyGraphContent({
           workerMs,
         });
       } else {
+        consumeFault("layout");
         console.error("[topology] layout failed:", event.data.message);
         setWorkerResult({
           cacheKey,
@@ -378,6 +387,7 @@ function TopologyGraphContent({
     worker.onerror = (event) => {
       if (settled) return;
       settled = true;
+      consumeFault("worker");
       console.error("[topology] layout worker failed:", event.message);
       setWorkerResult({
         cacheKey,
@@ -389,7 +399,13 @@ function TopologyGraphContent({
       });
     };
 
-    worker.postMessage({ requestId, cacheKey, graph });
+    worker.postMessage({
+      requestId,
+      cacheKey,
+      graph,
+      // AC3 QA (dev only): ?topologyFault=layout makes layoutGraph throw.
+      ...(shouldInjectFault("layout") ? { injectFault: true } : {}),
+    });
 
     return () => {
       settled = true;
@@ -453,6 +469,9 @@ function TopologyGraphContent({
     // AC2: loading skeleton while the layout runs.
     return <TopologySkeleton />;
   }
+
+  // AC3 QA (dev only): ?topologyFault=render throws after the layout arrives.
+  if (shouldInjectFault("render")) throw injectedFaultError("render");
 
   return (
     <div className="space-y-4">

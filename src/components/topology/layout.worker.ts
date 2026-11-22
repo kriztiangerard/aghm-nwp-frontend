@@ -14,6 +14,8 @@ interface LayoutWorkerRequest {
     edges: TopologyFlowEdge[];
     warnings: TopologyWarning[];
   };
+  /** NWP-TOPO-006 AC3 QA, dev only: set by ?topologyFault=layout. */
+  injectFault?: boolean;
 }
 
 type LayoutWorkerResponse =
@@ -31,9 +33,12 @@ type LayoutWorkerResponse =
     };
 
 self.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
-  const { requestId, cacheKey, graph } = event.data;
+  const { requestId, cacheKey, graph, injectFault } = event.data;
 
   try {
+    if (import.meta.env.DEV && injectFault) {
+      throw new Error("Injected topology layout fault (?topologyFault=layout)");
+    }
     const started = performance.now();
     const result = layoutGraph(graph, cacheKey);
     const layoutMs = performance.now() - started;
