@@ -23,7 +23,6 @@ import "./topology-theme.css";
 import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toFlowGraph } from "./adapter";
 import { FloorClosetBreakdown } from "./floor-closet-breakdown";
 import type { PositionedFlowGraph } from "./layout";
 import { TopologyMarkerContext } from "./edge-markers";
@@ -36,6 +35,18 @@ import { TopologyEdgeMarkers } from "./topology-edge";
 import { TopologyLegend } from "./topology-legend";
 import { buildNodeDetails, type NodeDetails } from "./node-details";
 import { NodeDetailsSheet } from "./node-details-sheet";
+import {
+  consumeFault,
+  injectedFaultError,
+  shouldInjectFault,
+} from "./topology-fault";
+import {
+  TopologyEmptyState,
+  TopologyErrorBoundary,
+  TopologyErrorState,
+  TopologySkeleton,
+} from "./topology-states";
+import { adaptWithTiming, recordTopologyTiming, timingNow } from "./topology-timing";
 import { nodeA11yLabel } from "./node-display";
 import type { FlowNodeData, TopologyFlowEdge } from "./types";
 import type { NetworkPlanData } from "@/components/comparison/types";
@@ -100,8 +111,8 @@ const toCanvasEdges = (graph: PositionedFlowGraph): TopologyFlowEdge[] =>
   }));
 
 /** Zoom bounds for the interactive canvas (AC1). */
-export const TOPOLOGY_MIN_ZOOM = 0.1;
-export const TOPOLOGY_MAX_ZOOM = 2;
+const TOPOLOGY_MIN_ZOOM = 0.1;
+const TOPOLOGY_MAX_ZOOM = 2;
 
 export function TopologyCanvas({
   graph,
@@ -267,53 +278,88 @@ export function TopologyCanvas({
   );
 }
 
+/** Monotonic id per layout request, so a late reply from an old worker is ignored (AC5). */
+let nextLayoutRequestId = 0;
+
+type LayoutWorkerMessage =
+  | {
+      requestId: number;
+      status: "success";
+      result: PositionedFlowGraph;
+      layoutMs?: number;
+    }
+  | {
+      requestId: number;
+      status: "error";
+      message: string;
+    };
+
+/**
+ * NWP-TOPO-006 AC3/AC5: the boundary catches adapter, layout and render
+ * errors inside the panel. It is keyed by plan, so switching vendors mounts
+ * a fresh boundary and a fresh graph; nothing from the previous plan (state,
+ * a pending worker, an earlier error) can show on the new one.
+ */
 export function TopologyGraph({ planData }: TopologyGraphProps) {
   const cacheKey = `${planData.generatedAt}:${planData.vendor}:${planData.tier}`;
+
+  return (
+    <TopologyErrorBoundary key={cacheKey}>
+      <TopologyGraphContent planData={planData} cacheKey={cacheKey} />
+    </TopologyErrorBoundary>
+  );
+}
+
+function TopologyGraphContent({
+  planData,
+  cacheKey,
+}: TopologyGraphProps & { cacheKey: string }) {
   const [expanded, setExpanded] = useState(false);
+  // Bumped by "Try again" after a layout error; restarts the worker.
+  const [attempt, setAttempt] = useState(0);
 
   // The per-floor split (revised AC5/AC10, AC11) happens inside layoutGraph,
-  // so it applies however the layout is called.
-  const graph = useMemo(
-    () =>
-      toFlowGraph({
-        bom: planData.bom,
-        topology: planData.topology,
-      }),
-    [planData.bom, planData.topology],
-  );
+  // so it applies however the layout is called. An adapter error thrown here
+  // is caught by TopologyErrorBoundary (AC3).
+  const adapted = useMemo(() => {
+    // AC3 QA (dev only): ?topologyFault=adapter
+    if (shouldInjectFault("adapter")) throw injectedFaultError("adapter");
+    return adaptWithTiming({
+      bom: planData.bom,
+      topology: planData.topology,
+    });
+  }, [planData.bom, planData.topology]);
+  const graph = adapted.graph;
 
   const [workerResult, setWorkerResult] = useState<{
     cacheKey: string;
     graph: typeof graph;
     result: PositionedFlowGraph | null;
     error: string | null;
+    layoutMs: number | null;
+    workerMs: number;
   } | null>(null);
 
   useEffect(() => {
     if (graph.status !== "available") return;
 
-    const worker = new Worker(
-      new URL("./layout.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    // AC3 QA (dev only): ?topologyFault=worker loads a script that does not
+    // exist, so worker.onerror fires. The real URL must stay a literal for Vite.
+    const worker = shouldInjectFault("worker")
+      ? new Worker("/__nwp-missing-layout-worker__.js", { type: "module" })
+      : new Worker(new URL("./layout.worker.ts", import.meta.url), {
+          type: "module",
+        });
 
-    const requestId = 1;
+    const requestId = ++nextLayoutRequestId;
+    const postedAt = timingNow();
+    let settled = false;
 
-    worker.onmessage = (
-      event: MessageEvent<
-        | {
-            requestId: number;
-            status: "success";
-            result: PositionedFlowGraph;
-          }
-        | {
-            requestId: number;
-            status: "error";
-            message: string;
-          }
-      >,
-    ) => {
-      if (event.data.requestId !== requestId) return;
+    worker.onmessage = (event: MessageEvent<LayoutWorkerMessage>) => {
+      // AC5: only the reply to this effect's own request counts.
+      if (settled || event.data.requestId !== requestId) return;
+      settled = true;
+      const workerMs = timingNow() - postedAt;
 
       if (event.data.status === "success") {
         setWorkerResult({
@@ -321,31 +367,53 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
           graph,
           result: event.data.result,
           error: null,
+          layoutMs: event.data.layoutMs ?? null,
+          workerMs,
         });
       } else {
+        consumeFault("layout");
+        console.error("[topology] layout failed:", event.data.message);
         setWorkerResult({
           cacheKey,
           graph,
           result: null,
           error: event.data.message,
+          layoutMs: null,
+          workerMs,
         });
       }
     };
 
-    worker.onerror = () => {
+    worker.onerror = (event) => {
+      if (settled) return;
+      settled = true;
+      consumeFault("worker");
+      console.error("[topology] layout worker failed:", event.message);
       setWorkerResult({
         cacheKey,
         graph,
         result: null,
-        error: "Topology layout worker failed",
+        error: event.message || "Topology layout worker failed",
+        layoutMs: null,
+        workerMs: timingNow() - postedAt,
       });
     };
 
-    worker.postMessage({ requestId, cacheKey, graph });
+    worker.postMessage({
+      requestId,
+      cacheKey,
+      graph,
+      // AC3 QA (dev only): ?topologyFault=layout makes layoutGraph throw.
+      ...(shouldInjectFault("layout") ? { injectFault: true } : {}),
+    });
 
-    return () => worker.terminate();
-  }, [graph, cacheKey]);
+    return () => {
+      settled = true;
+      worker.terminate();
+    };
+  }, [graph, cacheKey, attempt]);
 
+  // AC5: a result is shown only if it belongs to this plan and this graph.
   const currentWorkerResult =
     workerResult?.cacheKey === cacheKey &&
     workerResult.graph === graph
@@ -355,23 +423,55 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
   // Spine edge handles (WAN → gateway → core) are assigned in layout.ts.
   const positionedGraph = currentWorkerResult?.result ?? null;
 
+  // Dev-only timing (subtask 3): logged once, when the inline canvas has painted.
+  const timingLoggedRef = useRef(false);
+  const handleCanvasInit = useCallback(() => {
+    if (!import.meta.env.DEV || timingLoggedRef.current) return;
+    if (!currentWorkerResult?.result) return;
+    timingLoggedRef.current = true;
+    const { layoutMs, workerMs, result } = currentWorkerResult;
+    requestAnimationFrame(() => {
+      const totalMs = timingNow() - adapted.startedAt;
+      recordTopologyTiming({
+        key: cacheKey,
+        nodes: result.nodes.length,
+        edges: result.edges.length,
+        adapterMs: adapted.adapterMs,
+        layoutMs,
+        workerMs,
+        // Everything after the adapter and the worker: React commit, React
+        // Flow measuring the nodes, and the first paint.
+        renderMs: totalMs - adapted.adapterMs - workerMs,
+        totalMs,
+      });
+    });
+  }, [adapted, cacheKey, currentWorkerResult]);
+
   if (graph.status === "unavailable") {
+    // AC4: a clear empty state, never a blank canvas.
+    return <TopologyEmptyState reason={graph.reason} />;
+  }
+
+  if (currentWorkerResult?.error) {
+    // AC3: layout errors come back from the worker rather than being thrown.
     return (
-      <div className="flex h-56 items-center justify-center rounded-lg border border-dashed bg-muted/30 p-6 text-center">
-        <p className="text-sm text-muted-foreground">{graph.reason}</p>
-      </div>
+      <TopologyErrorState
+        detail={currentWorkerResult.error}
+        onRetry={() => {
+          setWorkerResult(null);
+          setAttempt((n) => n + 1);
+        }}
+      />
     );
   }
 
   if (!positionedGraph) {
-    return (
-      <div className="flex h-56 items-center justify-center rounded-lg border border-dashed bg-muted/30 p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          {currentWorkerResult?.error ?? "Generating topology layout..."}
-        </p>
-      </div>
-    );
+    // AC2: loading skeleton while the layout runs.
+    return <TopologySkeleton />;
   }
+
+  // AC3 QA (dev only): ?topologyFault=render throws after the layout arrives.
+  if (shouldInjectFault("render")) throw injectedFaultError("render");
 
   return (
     <div className="space-y-4">
@@ -417,6 +517,7 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
           graph={positionedGraph}
           planData={planData}
           onExpand={() => setExpanded(true)}
+          onInit={handleCanvasInit}
         />
       </div>
 
