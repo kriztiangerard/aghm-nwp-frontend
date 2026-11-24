@@ -110,7 +110,7 @@ function Running({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="fixed inset-0 z-[100] flex h-full w-full flex-col items-center justify-center bg-black/85 backdrop-blur-2xl"
+      className="fixed inset-0 z-[100] flex h-full w-full flex-col items-center justify-center bg-black/85 backdrop-blur-2xl animate-in fade-in duration-500 motion-reduce:animate-none"
     >
       <span className="sr-only">
         Step {current + 1} of {loadingStates.length}: {loadingStates[current]?.text}

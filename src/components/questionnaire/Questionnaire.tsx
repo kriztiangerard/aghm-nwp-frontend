@@ -13,6 +13,7 @@ import { z } from 'zod'
 // shadcn components
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { Network } from 'lucide-react'
 import { MultiStepLoader } from '@/components/ui/multi-step-loader'
 import {
   Card,
@@ -69,6 +70,8 @@ function Questionnaire() {
     returnToSummary ? steps.length - 1 : 0,
   )
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // True only while a generation request, started by the Generate button, is running.
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // NWP-COMPARE-002
   const navigate = useNavigate()
@@ -209,7 +212,20 @@ function Questionnaire() {
     }
   }
 
+  // Runs only after validation passes, and only from the Generate button.
+  // The loader is tied to this flag (not to formState.isSubmitting, which is also
+  // true while validation runs), so it never shows on validation errors or when
+  // returning to the summary.
   const onSubmit = async (data: FormOutput) => {
+    setIsGenerating(true)
+    try {
+      await generate(data)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const generate = async (data: FormOutput) => {
     closeOpenSelectPortals(typeof document !== 'undefined' ? document : null)
     setSubmitError(null)
     setQuestionnaireDraft(data)
@@ -300,7 +316,7 @@ function Questionnaire() {
     <FormProvider {...form}>
         <MultiStepLoader
           loadingStates={ENGINE_STEPS}
-          loading={isSubmitting}
+          loading={isGenerating}
           duration={ENGINE_STEP_DURATION_MS}
           loop={false}
         />
@@ -310,7 +326,9 @@ function Questionnaire() {
 
           <Card className={`flex flex-col overflow-hidden lg:h-[calc(100dvh-6rem)] lg:min-h-[36rem] ${!showSummaryPanel ? 'mx-auto w-full max-w-5xl' : ''}`}>
             <form
-              onSubmit={form.handleSubmit(onSubmit)}
+              // Never submit natively (Enter key, button type swaps). Generation starts
+              // only from the Generate button's click handler below.
+              onSubmit={(event) => event.preventDefault()}
               className="flex min-h-0 flex-1 flex-col lg:h-full"
               aria-labelledby="questionnaire-title"
             >
@@ -388,6 +406,7 @@ function Questionnaire() {
 
                 {currentStep < totalSteps - 1 ? (
                   <Button
+                    key="next"
                     type="button"
                     onClick={handleNext}
                     disabled={isSubmitting}
@@ -396,9 +415,14 @@ function Questionnaire() {
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    key="generate"
+                    type="button"
+                    onClick={form.handleSubmit(onSubmit)}
                     disabled={isSubmitting}
+                    data-generating={isGenerating}
+                    className="generate-button h-10! gap-2! px-6! text-sm! font-semibold! disabled:opacity-100!"
                   >
+                    <Network aria-hidden="true" />
                     {isSubmitting
                       ? 'Generating comparison...'
                       : 'Generate comparison'}
