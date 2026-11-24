@@ -13,7 +13,6 @@ import { z } from 'zod'
 // shadcn components
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { Network } from 'lucide-react'
 import { MultiStepLoader } from '@/components/ui/multi-step-loader'
 import {
   Card,
@@ -40,6 +39,7 @@ import { SECTION_TITLES } from '../../lib/summary'
 import { usePlanResult } from '../comparison/plan-result-context'
 import { useSelectedPlan } from '../comparison/selected-plan-context'
 import { adaptEngineResponse } from '../comparison/adapt-engine-response'
+import type { PlanResult } from '../comparison/plan-result-context'
 import { ENGINE_STEPS, ENGINE_STEP_DURATION_MS } from './engine-steps' //for the multi-step loader
 
 const sectionSteps = [
@@ -65,18 +65,26 @@ type FormField = FieldPath<FormInput>
 
 function Questionnaire() {
   const location = useLocation()
-  const returnToSummary = location.state?.returnToSummary === true
-  const [currentStep, setCurrentStep] = useState(
-    returnToSummary ? steps.length - 1 : 0,
-  )
   const [submitError, setSubmitError] = useState<string | null>(null)
-  // True only while a generation request, started by the Generate button, is running.
+  // True from the Generate click until the loader has finished and we navigate away.
   const [isGenerating, setIsGenerating] = useState(false)
+  // True once the engine has answered; tells the loader to finish its remaining steps.
+  const [isRequestDone, setIsRequestDone] = useState(false)
+  const pendingResult = useRef<PlanResult | null>(null)
 
   // NWP-COMPARE-002
   const navigate = useNavigate()
   const { questionnaireDraft, setQuestionnaireDraft, setResult } = usePlanResult()
   const { clear: clearSelected } = useSelectedPlan()
+
+  // Coming back from the comparison page: reopen on the summary with the saved answers.
+  // Both the router flag and the saved draft are required, so a refresh (draft lost)
+  // starts fresh at step 1 instead of showing an empty summary.
+  const returnToSummary =
+    location.state?.returnToSummary === true && questionnaireDraft !== null
+  const [currentStep, setCurrentStep] = useState(
+    returnToSummary ? steps.length - 1 : 0,
+  )
 
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null)
   const isInitialRender = useRef(true)
@@ -213,19 +221,44 @@ function Questionnaire() {
   }
 
   // Runs only after validation passes, and only from the Generate button.
-  // The loader is tied to this flag (not to formState.isSubmitting, which is also
+  // The loader is tied to isGenerating (not to formState.isSubmitting, which is also
   // true while validation runs), so it never shows on validation errors or when
-  // returning to the summary.
+  // returning to the summary. On success we do NOT navigate here: the loader first
+  // finishes its steps, then calls handleLoaderComplete.
   const onSubmit = async (data: FormOutput) => {
     setIsGenerating(true)
+    setIsRequestDone(false)
+    pendingResult.current = null
+
+    let planResult: PlanResult | null = null
     try {
-      await generate(data)
+      planResult = await generate(data)
     } finally {
-      setIsGenerating(false)
+      if (!planResult) setIsGenerating(false)
+    }
+
+    if (planResult) {
+      pendingResult.current = planResult
+      setIsRequestDone(true)
     }
   }
 
-  const generate = async (data: FormOutput) => {
+  // NWP-COMPARE-002: store the generated plans in memory (no storage, no router
+  // state), drop any previous selection, then go to the comparison page.
+  const handleLoaderComplete = () => {
+    const planResult = pendingResult.current
+    pendingResult.current = null
+    if (!planResult) {
+      setIsGenerating(false)
+      return
+    }
+    setResult(planResult)
+    clearSelected()
+    navigate('/comparison')
+    setIsGenerating(false)
+  }
+
+  const generate = async (data: FormOutput): Promise<PlanResult | null> => {
     closeOpenSelectPortals(typeof document !== 'undefined' ? document : null)
     setSubmitError(null)
     setQuestionnaireDraft(data)
@@ -284,23 +317,18 @@ function Questionnaire() {
         console.error('[Questionnaire] Error:', new Error(`HTTP ${response.status}: ${response.statusText}`))
         console.error('[Questionnaire] API URL:', requestUrl)
         setSubmitError('Unable to submit your questionnaire. Please check your connection and try again.')
-        return
+        return null
       }
 
       console.log('[Questionnaire] Request succeeded')
 
-      // NWP-COMPARE-002: store the generated plans in memory (no storage, no router
-      // state), drop any previous selection, then go to the comparison page.
-      // This was `console.log('Recommendation result:', responseBody)`.
       try {
-        setResult(adaptEngineResponse(responseBody, data))
+        return adaptEngineResponse(responseBody, data)
       } catch (adaptError) {
         console.error('[Questionnaire] Unexpected response shape:', adaptError)
         setSubmitError('We received an unexpected response. Please try again.')
-        return
+        return null
       }
-      clearSelected()
-      navigate('/comparison')
     } catch (error) {
       const fetchError = error instanceof Error ? error : new Error('Unknown fetch error')
 
@@ -309,6 +337,7 @@ function Questionnaire() {
       console.error('[Questionnaire] API URL:', requestUrl)
 
       setSubmitError('Unable to submit your questionnaire. Please check your connection and try again.')
+      return null
     }
   }
 
@@ -317,6 +346,8 @@ function Questionnaire() {
         <MultiStepLoader
           loadingStates={ENGINE_STEPS}
           loading={isGenerating}
+          done={isRequestDone}
+          onComplete={handleLoaderComplete}
           duration={ENGINE_STEP_DURATION_MS}
           loop={false}
         />
@@ -398,7 +429,8 @@ function Questionnaire() {
                   onClick={handleBack}
                   disabled={
                     currentStep === 0 ||
-                    isSubmitting
+                    isSubmitting ||
+                    isGenerating
                   }
                 >
                   Back
@@ -418,12 +450,9 @@ function Questionnaire() {
                     key="generate"
                     type="button"
                     onClick={form.handleSubmit(onSubmit)}
-                    disabled={isSubmitting}
-                    data-generating={isGenerating}
-                    className="generate-button h-10! gap-2! px-6! text-sm! font-semibold! disabled:opacity-100!"
+                    disabled={isSubmitting || isGenerating}
                   >
-                    <Network aria-hidden="true" />
-                    {isSubmitting
+                    {isSubmitting || isGenerating
                       ? 'Generating comparison...'
                       : 'Generate comparison'}
                   </Button>

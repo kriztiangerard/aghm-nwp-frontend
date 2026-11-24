@@ -1,6 +1,10 @@
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { SonarGrid } from '@/components/ui/sonar-grid'
+
+// Lets the click glow be seen before the page changes.
+const GLOW_BEFORE_NAVIGATE_MS = 450
 
 interface SplashLocationState {
   reportMessage?: string
@@ -11,6 +15,19 @@ function SplashPage() {
   const location = useLocation()
   const locationState = location.state as SplashLocationState | null
   const reportMessage = locationState?.reportMessage
+  const [launching, setLaunching] = useState(false)
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  const handleStart = () => {
+    if (launching) return
+    setLaunching(true)
+    timer.current = window.setTimeout(
+      () => navigate('/questionnaire'),
+      GLOW_BEFORE_NAVIGATE_MS,
+    )
+  }
 
   return (
     <main className="relative isolate flex min-h-screen items-center overflow-hidden bg-black px-8 sm:px-12 lg:px-20">
@@ -47,7 +64,9 @@ function SplashPage() {
           <Button
             type="button"
             size="lg"
-            onClick={() => navigate('/questionnaire')}
+            onClick={handleStart}
+            data-glowing={launching}
+            className="glow-button h-10! px-6! text-sm! font-semibold!"
           >
             Start Network Generation
           </Button>

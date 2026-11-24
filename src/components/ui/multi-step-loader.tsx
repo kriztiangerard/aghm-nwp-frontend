@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Check, LoaderCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -8,6 +8,11 @@ export interface LoadingState {
 
 const ROW_REM = 3
 const VIEWPORT_REM = 18
+
+// Once the work is done, remaining steps tick off quickly, then the finished state
+// is held briefly before onComplete fires.
+const FAST_FORWARD_MS = 220
+const FINISH_HOLD_MS = 700
 
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 
@@ -39,7 +44,9 @@ export function LoaderCore({
   value?: number
   className?: string
 }) {
-  const shift = VIEWPORT_REM / 2 - (value + 0.5) * ROW_REM
+  // `value` may equal loadingStates.length (all steps done); keep the last row centered.
+  const focus = Math.min(value, loadingStates.length - 1)
+  const shift = VIEWPORT_REM / 2 - (focus + 0.5) * ROW_REM
 
   return (
     <div
@@ -60,7 +67,7 @@ export function LoaderCore({
         {loadingStates.map((state, index) => {
           const done = index < value
           const current = index === value
-          const distance = Math.abs(index - value)
+          const distance = Math.abs(index - focus)
 
           return (
             <li
@@ -109,23 +116,44 @@ function Running({
   loadingStates,
   duration,
   loop,
+  done,
+  onComplete,
 }: {
   loadingStates: LoadingState[]
   duration: number
   loop: boolean
+  done: boolean
+  onComplete?: () => void
 }) {
+  const total = loadingStates.length
+  const last = total - 1
+  // 0..total; `total` means every step is checked off.
   const [current, setCurrent] = useState(0)
-  const last = loadingStates.length - 1
   const dark = useSystemDark()
+  const onCompleteRef = useRef(onComplete)
 
   useEffect(() => {
-    // Without `loop`, the last step stays on screen until `loading` turns false.
+    onCompleteRef.current = onComplete
+  })
+
+  useEffect(() => {
+    if (done) {
+      if (current >= total) {
+        const id = setTimeout(() => onCompleteRef.current?.(), FINISH_HOLD_MS)
+        return () => clearTimeout(id)
+      }
+      const id = setTimeout(() => setCurrent((c) => Math.min(c + 1, total)), FAST_FORWARD_MS)
+      return () => clearTimeout(id)
+    }
+    // Without `loop`, the last step stays on screen until the work is done.
     if (!loop && current >= last) return
     const id = setTimeout(() => {
-      setCurrent((c) => (loop ? (c + 1) % loadingStates.length : Math.min(c + 1, last)))
+      setCurrent((c) => (loop ? (c + 1) % total : Math.min(c + 1, last)))
     }, duration)
     return () => clearTimeout(id)
-  }, [current, duration, loop, last, loadingStates.length])
+  }, [done, current, duration, loop, last, total])
+
+  const finished = current >= total
 
   return (
     <div
@@ -140,12 +168,14 @@ function Running({
       )}
     >
       <span className="sr-only">
-        Step {current + 1} of {loadingStates.length}: {loadingStates[current]?.text}
+        {finished
+          ? "All steps complete"
+          : `Step ${current + 1} of ${total}: ${loadingStates[current]?.text}`}
       </span>
       <div className="w-full max-w-md px-8">
         <LoaderCore loadingStates={loadingStates} value={current} />
         <p aria-hidden="true" className="mt-4 text-center font-sans text-xs tracking-wide text-muted-foreground">
-          Step {current + 1} of {loadingStates.length}
+          {finished ? "Done" : `Step ${current + 1} of ${total}`}
         </p>
       </div>
     </div>
@@ -160,6 +190,13 @@ export interface MultiStepLoaderProps {
   duration?: number
   /** Restart from the first step after the last. When false, the last step is held. */
   loop?: boolean
+  /**
+   * Set when the work has finished. The remaining steps are checked off quickly,
+   * then `onComplete` fires. Until then the last step is held (when `loop` is false).
+   */
+  done?: boolean
+  /** Called once, after the loader has shown every step as complete. */
+  onComplete?: () => void
 }
 
 /** Full-screen overlay that walks through a list of steps while work is in progress. */
@@ -168,8 +205,18 @@ export function MultiStepLoader({
   loading,
   duration = 2000,
   loop = true,
+  done = false,
+  onComplete,
 }: MultiStepLoaderProps) {
   if (!loading || loadingStates.length === 0) return null
   // Mounted only while loading, so every run starts at step one.
-  return <Running loadingStates={loadingStates} duration={duration} loop={loop} />
+  return (
+    <Running
+      loadingStates={loadingStates}
+      duration={duration}
+      loop={loop}
+      done={done}
+      onComplete={onComplete}
+    />
+  )
 }

@@ -145,24 +145,24 @@
   }
 }
 
-/* Generate comparison button: resting glow, brighter on hover, pulsing while pressed or generating. */
-.generate-button {
+/* Glow button (splash "Start" button): resting glow, brighter on hover, pulsing while pressed. */
+.glow-button {
   box-shadow: 0 6px 18px -6px color-mix(in oklch, var(--primary) 70%, transparent);
   transition: box-shadow 200ms ease, transform 200ms ease;
 }
 
-.generate-button:hover:not(:disabled) {
+.glow-button:hover:not(:disabled) {
   box-shadow:
     0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent),
     0 8px 26px -4px color-mix(in oklch, var(--primary) 80%, transparent);
 }
 
-.generate-button:active:not(:disabled),
-.generate-button[data-generating="true"] {
-  animation: generate-glow 1.2s ease-in-out infinite;
+.glow-button:active:not(:disabled),
+.glow-button[data-glowing="true"] {
+  animation: glow-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes generate-glow {
+@keyframes glow-pulse {
   0%,
   100% {
     box-shadow:
@@ -177,8 +177,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .generate-button:active:not(:disabled),
-  .generate-button[data-generating="true"] {
+  .glow-button:active:not(:disabled),
+  .glow-button[data-glowing="true"] {
     animation: none;
     box-shadow:
       0 0 0 4px color-mix(in oklch, var(--primary) 30%, transparent),
