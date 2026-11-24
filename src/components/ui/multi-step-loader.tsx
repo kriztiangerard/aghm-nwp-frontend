@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { Check, LoaderCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -8,6 +8,23 @@ export interface LoadingState {
 
 const ROW_REM = 3
 const VIEWPORT_REM = 18
+
+const DARK_QUERY = "(prefers-color-scheme: dark)"
+
+function subscribeToSystemTheme(onChange: () => void) {
+  const query = window.matchMedia(DARK_QUERY)
+  query.addEventListener("change", onChange)
+  return () => query.removeEventListener("change", onChange)
+}
+
+/** Follows the operating system's light/dark setting, live. */
+function useSystemDark() {
+  return useSyncExternalStore(
+    subscribeToSystemTheme,
+    () => window.matchMedia(DARK_QUERY).matches,
+    () => false,
+  )
+}
 
 /**
  * The step list: finished steps get a check, the current step is highlighted and
@@ -57,9 +74,11 @@ export function LoaderCore({
               <span
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-300",
-                  done && "border-emerald-400 bg-emerald-400 text-black",
-                  current && "border-emerald-400 text-emerald-400",
-                  !done && !current && "border-white/30 text-transparent",
+                  done &&
+                    "border-emerald-600 bg-emerald-600 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-black",
+                  current &&
+                    "border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400",
+                  !done && !current && "border-foreground/30 text-transparent",
                 )}
               >
                 {done ? (
@@ -70,8 +89,10 @@ export function LoaderCore({
               </span>
               <span
                 className={cn(
-                  "text-base transition-colors duration-300 sm:text-lg",
-                  current ? "font-semibold text-emerald-300" : "text-white",
+                  "font-sans text-base transition-colors duration-300 sm:text-lg",
+                  current
+                    ? "font-heading font-semibold text-emerald-700 dark:text-emerald-300"
+                    : "text-foreground",
                 )}
               >
                 {state.text}
@@ -95,6 +116,7 @@ function Running({
 }) {
   const [current, setCurrent] = useState(0)
   const last = loadingStates.length - 1
+  const dark = useSystemDark()
 
   useEffect(() => {
     // Without `loop`, the last step stays on screen until `loading` turns false.
@@ -110,14 +132,19 @@ function Running({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="fixed inset-0 z-[100] flex h-full w-full flex-col items-center justify-center bg-black/85 backdrop-blur-2xl animate-in fade-in duration-500 motion-reduce:animate-none"
+      // Setting `dark` here swaps in the app's dark palette (index.css) for the
+      // overlay when the OS is in dark mode; otherwise the light palette applies.
+      className={cn(
+        "fixed inset-0 z-[100] flex h-full w-full flex-col items-center justify-center bg-background/85 font-sans text-foreground backdrop-blur-2xl animate-in fade-in duration-500 motion-reduce:animate-none",
+        dark && "dark",
+      )}
     >
       <span className="sr-only">
         Step {current + 1} of {loadingStates.length}: {loadingStates[current]?.text}
       </span>
       <div className="w-full max-w-md px-8">
         <LoaderCore loadingStates={loadingStates} value={current} />
-        <p aria-hidden="true" className="mt-4 text-center text-xs tracking-wide text-white/50">
+        <p aria-hidden="true" className="mt-4 text-center font-sans text-xs tracking-wide text-muted-foreground">
           Step {current + 1} of {loadingStates.length}
         </p>
       </div>
