@@ -18,6 +18,8 @@ interface PlanResultValue {
   result: PlanResult | null;
   setResult: (result: PlanResult) => void;
   clearResult: () => void;
+  questionnaireDraft: QuestionnaireData | null;
+  setQuestionnaireDraft: (draft: QuestionnaireData) => void;
 }
 
 const PlanResultContext = createContext<PlanResultValue | null>(null);
@@ -26,14 +28,18 @@ export const PlanResultProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [result, setResult] = useState<PlanResult | null>(null);
+  const [questionnaireDraft, setQuestionnaireDraft] =
+    useState<QuestionnaireData | null>(null);
 
   const value = useMemo<PlanResultValue>(
     () => ({
       result,
       setResult,
       clearResult: () => setResult(null),
+      questionnaireDraft,
+      setQuestionnaireDraft,
     }),
-    [result],
+    [result, questionnaireDraft],
   );
 
   return (

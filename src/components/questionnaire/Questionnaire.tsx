@@ -1,7 +1,7 @@
 import { mapFormToNetworkConfiguration } from '../../lib/network-config-mapper'
 import { closeOpenSelectPortals } from '../../lib/closeOpenSelectPortals'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom' // NWP-COMPARE-002
+import { useLocation, useNavigate } from 'react-router-dom' // NWP-COMPARE-002
 import {
   FormProvider,
   useForm,
@@ -63,12 +63,16 @@ type FormOutput = z.output<typeof fullSchema>
 type FormField = FieldPath<FormInput>
 
 function Questionnaire() {
-  const [currentStep, setCurrentStep] = useState(0)
+  const location = useLocation()
+  const returnToSummary = location.state?.returnToSummary === true
+  const [currentStep, setCurrentStep] = useState(
+    returnToSummary ? steps.length - 1 : 0,
+  )
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   // NWP-COMPARE-002
   const navigate = useNavigate()
-  const { setResult } = usePlanResult()
+  const { questionnaireDraft, setQuestionnaireDraft, setResult } = usePlanResult()
   const { clear: clearSelected } = useSelectedPlan()
 
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -80,7 +84,7 @@ function Questionnaire() {
     reValidateMode: 'onChange',
     shouldUnregister: false,
 
-    defaultValues: {
+    defaultValues: returnToSummary && questionnaireDraft ? questionnaireDraft : {
       preferences: {
         applications: {
           videoConferencing: false,
@@ -208,6 +212,7 @@ function Questionnaire() {
   const onSubmit = async (data: FormOutput) => {
     closeOpenSelectPortals(typeof document !== 'undefined' ? document : null)
     setSubmitError(null)
+    setQuestionnaireDraft(data)
 
     const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
     const apiUrl = configuredApiUrl || (import.meta.env.DEV ? 'http://localhost:8000' : '')
@@ -395,8 +400,8 @@ function Questionnaire() {
                     disabled={isSubmitting}
                   >
                     {isSubmitting
-                      ? 'Submitting...'
-                      : 'Submit'}
+                      ? 'Generating comparison...'
+                      : 'Generate comparison'}
                   </Button>
                 )}
               </CardContent>

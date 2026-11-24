@@ -25,6 +25,7 @@ interface ComparisonProps {
   defaultVendors?: DefaultVendors;
   /** NWP-COMPARE-002: called with the chosen tier/vendor and that plan's data. */
   onContinue?: (choice: PlanChoice, plan: NetworkPlanData) => void;
+  onBackToSummary?: () => void;
 }
 
 const generationKeyOf = (plansData?: VendorPlansPayload): string => {
@@ -44,6 +45,7 @@ export const Comparison: React.FC<ComparisonProps> = ({
   plansData,
   defaultVendors,
   onContinue,
+  onBackToSummary,
 }) => {
   const generationKey = generationKeyOf(plansData);
   return (
@@ -52,6 +54,7 @@ export const Comparison: React.FC<ComparisonProps> = ({
       plansData={plansData}
       defaultVendors={defaultVendors}
       onContinue={onContinue}
+      onBackToSummary={onBackToSummary}
     />
   );
 };
@@ -60,6 +63,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   plansData,
   defaultVendors,
   onContinue,
+  onBackToSummary,
 }) => {
   const vendorsByTier = useMemo(() => {
     const result = {} as Record<PlanTier, VendorName[]>;
@@ -129,34 +133,39 @@ const ComparisonView: React.FC<ComparisonProps> = ({
       ) : !hasAnyPlan ? (
         <EmptyState />
       ) : (
-        <>
-          <div
-            role="radiogroup"
-            aria-label="Network plans"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
-          >
-            {PLAN_TIERS.map((tier) => (
-              <PlanPanel
-                key={tier}
-                tier={tier}
-                vendor={shown[tier]}
-                defaultVendor={defaultVendors?.[tier]}
-                vendorsWithPlans={vendorsByTier[tier]}
-                plansData={plansData}
-                isSelected={selectedTier === tier}
-                onSelect={() => setSelectedTier(tier)}
-                onVendorChange={(vendor) => handleVendorChange(tier, vendor)}
-              />
-            ))}
-          </div>
-
-          <div className="flex justify-end">
-            <Button type="button" size="lg" disabled={!canContinue} onClick={handleContinue}>
-              Continue to final report
-            </Button>
-          </div>
-        </>
+        <div
+          role="radiogroup"
+          aria-label="Network plans"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
+        >
+          {PLAN_TIERS.map((tier) => (
+            <PlanPanel
+              key={tier}
+              tier={tier}
+              vendor={shown[tier]}
+              defaultVendor={defaultVendors?.[tier]}
+              vendorsWithPlans={vendorsByTier[tier]}
+              plansData={plansData}
+              isSelected={selectedTier === tier}
+              onSelect={() => setSelectedTier(tier)}
+              onVendorChange={(vendor) => handleVendorChange(tier, vendor)}
+            />
+          ))}
+        </div>
       )}
+
+      <div className={`flex ${onBackToSummary ? "justify-between" : "justify-end"}`}>
+        {onBackToSummary && (
+          <Button type="button" variant="outline" onClick={onBackToSummary}>
+            Back to summary
+          </Button>
+        )}
+        {!isLoading && hasAnyPlan && (
+          <Button type="button" size="lg" disabled={!canContinue} onClick={handleContinue}>
+            Continue to final report
+          </Button>
+        )}
+      </div>
     </section>
   );
 };

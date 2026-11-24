@@ -4,8 +4,8 @@ import { usePlanResult } from "./plan-result-context";
 import { useSelectedPlan } from "./selected-plan-context";
 
 export default function ComparisonRoute() {
-  const { result } = usePlanResult();
-  const { setSelected } = useSelectedPlan();
+  const { result, setQuestionnaireDraft, clearResult } = usePlanResult();
+  const { setSelected, clear: clearSelected } = useSelectedPlan();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo =
@@ -23,6 +23,12 @@ export default function ComparisonRoute() {
       onContinue={(choice, plan) => {
         setSelected(choice, plan);
         navigate("/report", { state: { returnTo } });
+      }}
+      onBackToSummary={() => {
+        setQuestionnaireDraft(result.questionnaireData);
+        clearResult();
+        clearSelected();
+        navigate("/questionnaire", { state: { returnToSummary: true } });
       }}
     />
   );
