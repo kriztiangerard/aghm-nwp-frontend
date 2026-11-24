@@ -454,7 +454,7 @@ function Questionnaire() {
                   >
                     {isSubmitting || isGenerating
                       ? 'Generating comparison...'
-                      : 'Generate comparison'}
+                      : 'Generate plans'}
                   </Button>
                 )}
               </CardContent>
