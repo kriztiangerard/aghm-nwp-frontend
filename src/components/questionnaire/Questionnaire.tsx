@@ -13,6 +13,7 @@ import { z } from 'zod'
 // shadcn components
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { MultiStepLoader } from '@/components/ui/multi-step-loader'
 import {
   Card,
   CardContent,
@@ -38,6 +39,7 @@ import { SECTION_TITLES } from '../../lib/summary'
 import { usePlanResult } from '../comparison/plan-result-context'
 import { useSelectedPlan } from '../comparison/selected-plan-context'
 import { adaptEngineResponse } from '../comparison/adapt-engine-response'
+import { ENGINE_STEPS, ENGINE_STEP_DURATION_MS } from './engine-steps' //for the multi-step loader
 
 const sectionSteps = [
   ProjectBasics,
@@ -291,6 +293,12 @@ function Questionnaire() {
 
   return (
     <FormProvider {...form}>
+        <MultiStepLoader
+          loadingStates={ENGINE_STEPS}
+          loading={isSubmitting}
+          duration={ENGINE_STEP_DURATION_MS}
+          loop={false}
+        />
       <main className="min-h-screen bg-muted/30 px-4 py-8 sm:px-8 sm:py-12">
         <div className={`mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-8 ${mainGridClass}`}>
           {showSummaryPanel && <SummaryPanel sectionKey={currentSectionKey} />}
