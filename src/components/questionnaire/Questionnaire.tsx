@@ -351,11 +351,11 @@ function Questionnaire() {
           duration={ENGINE_STEP_DURATION_MS}
           loop={false}
         />
-      <main className="fade-in flex-1 bg-muted/30 px-4 py-8 sm:px-8 sm:py-12">
+      <main className="fade-in min-h-screen bg-muted/30 px-4 py-8 sm:px-8 sm:py-12">
         <div className={`mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-8 ${mainGridClass}`}>
           {showSummaryPanel && <SummaryPanel sectionKey={currentSectionKey} />}
 
-          <Card className={`flex flex-col overflow-hidden lg:h-[calc(100dvh-6rem-var(--app-footer-height,0px))] lg:min-h-[36rem] ${!showSummaryPanel ? 'mx-auto w-full max-w-5xl' : ''}`}>
+          <Card className={`flex flex-col overflow-hidden lg:h-[calc(100dvh-6rem)] lg:min-h-[36rem] ${!showSummaryPanel ? 'mx-auto w-full max-w-5xl' : ''}`}>
             <form
               // Never submit natively (Enter key, button type swaps). Generation starts
               // only from the Generate button's click handler below.
