@@ -79,7 +79,7 @@ export function AnimatedTitle({ className }: { className?: string }) {
       <span aria-hidden="true" className="block">
         <TitleLines>
           {frame.selected > 0 && (
-            <span className="-mx-[0.04em] bg-emerald-400 px-[0.04em] text-black">
+            <span className="-mx-[0.04em] bg-emerald-700 px-[0.04em] text-white dark:bg-emerald-400 dark:text-black">
               {frame.word.slice(0, frame.selected)}
             </span>
           )}
