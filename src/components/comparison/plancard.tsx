@@ -47,6 +47,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   // The engine also marks a total partial when the plan is incomplete, so the
   // note must not claim missing prices unless a line really has none.
   const hasUnpriced = planData.bom.some((l) => l.unitPrice === null);
+  const unmetRequirements = [...new Set(planData.unmet)];
 
   // NWP-COMPARE-002
   const titleId = useId();
@@ -116,6 +117,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       <CardContent className="@container/plan flex-1 pt-5 space-y-6">
         {!planData.complete && (
           <div
+            key={selectedVendor}
             role="alert"
             className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs space-y-1.5"
           >
@@ -124,7 +126,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
               This plan is incomplete. Unmet requirements:
             </p>
             <ul className="list-disc pl-5 space-y-0.5 text-foreground">
-              {planData.unmet.map((u) => (
+              {unmetRequirements.map((u) => (
                 <li key={u}>{u}</li>
               ))}
             </ul>

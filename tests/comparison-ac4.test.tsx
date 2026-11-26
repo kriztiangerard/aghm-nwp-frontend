@@ -96,3 +96,70 @@ test("AC4 vendor switching uses loaded plans without backend requests", () => {
   expect(fetchSpy).not.toHaveBeenCalled();
   expect(JSON.stringify(plans)).toBe(originalPlans);
 });
+
+test("vendor switching replaces incomplete-plan warnings without duplicates", () => {
+  const plans = scenarios.happy;
+  const omadaPlan = plans?.["TP-Link Omada"]?.["Cost-Efficient"];
+  const ubiquitiPlan = plans?.["Ubiquiti UniFi"]?.["Cost-Efficient"];
+
+  if (!plans || !omadaPlan || !ubiquitiPlan) {
+    throw new Error("Happy fixture is missing vendor plans.");
+  }
+
+  const omadaWarning = "Omada requirement warning.";
+  const ubiquitiWarning = "UniFi requirement warning.";
+  const plansWithWarnings = {
+    ...plans,
+    "TP-Link Omada": {
+      ...plans["TP-Link Omada"],
+      "Cost-Efficient": {
+        ...omadaPlan,
+        complete: false,
+        unmet: [omadaWarning, omadaWarning],
+      },
+    },
+    "Ubiquiti UniFi": {
+      ...plans["Ubiquiti UniFi"],
+      "Cost-Efficient": {
+        ...ubiquitiPlan,
+        complete: false,
+        unmet: [ubiquitiWarning],
+      },
+    },
+  };
+
+  render(
+    <SelectedPlanProvider>
+      <Comparison
+        plansData={plansWithWarnings}
+        defaultVendors={{
+          "Cost-Efficient": "TP-Link Omada",
+          "High-Performance": "TP-Link Omada",
+        }}
+      />
+    </SelectedPlanProvider>,
+  );
+
+  const cePanel = within(
+    screen.getByRole("radio", { name: "Cost-Efficient Plan" }),
+  );
+  const vendorSelect = cePanel.getByRole("combobox", {
+    name: "Vendor for Cost-Efficient plan",
+  });
+  const expectWarning = (warning: string, absentWarning: string) => {
+    expect(cePanel.getAllByText(warning)).toHaveLength(1);
+    expect(cePanel.queryByText(absentWarning)).toBeNull();
+  };
+
+  expectWarning(omadaWarning, ubiquitiWarning);
+
+  fireEvent.change(vendorSelect, {
+    target: { value: "Ubiquiti UniFi" },
+  });
+  expectWarning(ubiquitiWarning, omadaWarning);
+
+  fireEvent.change(vendorSelect, {
+    target: { value: "TP-Link Omada" },
+  });
+  expectWarning(omadaWarning, ubiquitiWarning);
+});
