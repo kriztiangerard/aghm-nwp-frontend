@@ -5,7 +5,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { usePlanResult } from "../comparison/plan-result-context";
 import { useSelectedPlan } from "../comparison/selected-plan-context";
-import TopologyDiagram from "./TopologyDiagram";
+import { TopologyGraph } from "@/components/topology/topology-graph";
 import InstallationMaterialsSummary from "./InstallationMaterialsSummary";
 import BomTable from "./BomTable";
 import BomStatusLegend from "./BomStatusLegend";
@@ -85,6 +85,10 @@ export default function Report() {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const pdfGeneratingRef = useRef(false);
+  // Where the topology renders its floor groups and warnings, below the canvas.
+  const [topologyDetails, setTopologyDetails] = useState<HTMLDivElement | null>(
+    null,
+  );
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -332,8 +336,18 @@ const handleCsvDownload = () => {
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Network topology</h2>
-        <div className="rounded-xl border bg-card p-4">
-          <TopologyDiagram topology={report.topology} />
+        {/* The comparison page's diagram. "fill" drops its own frame so the
+            canvas spans the card; the empty and error boxes keep a margin. */}
+        <div className="overflow-hidden rounded-xl border bg-card [&>[data-testid=topology-empty]]:m-4 [&>[data-testid=topology-error]]:m-4">
+          <TopologyGraph
+            planData={plan}
+            fill
+            detailsContainer={topologyDetails}
+          />
+          <div
+            ref={setTopologyDetails}
+            className="space-y-3 border-t px-4 pb-4 empty:hidden [&>p]:pt-3"
+          />
         </div>
       </section>
 
@@ -356,9 +370,7 @@ const handleCsvDownload = () => {
         <h2 className="text-xl font-semibold">
           Installation Materials Summary
         </h2>
-        <div className="rounded-xl border bg-card p-4">
-          <InstallationMaterialsSummary materials={report.installationMaterials} />
-        </div>
+        <InstallationMaterialsSummary materials={report.installationMaterials} />
       </section>
 
       {(report.assumptions.length > 0 ||
