@@ -1,15 +1,13 @@
-import React, { useId } from "react";
+import React, { useId, useState } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 // import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
-import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils"; // NWP-COMPARE-002
 import { formatCurrency, formatDateTime, PRICE_UNAVAILABLE } from "./format";
@@ -52,6 +50,12 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   // NWP-COMPARE-002
   const titleId = useId();
 
+  // Where the topology puts its legend and floor groups, so the canvas can
+  // use the card's full height.
+  const [topologyDetails, setTopologyDetails] = useState<HTMLDivElement | null>(
+    null,
+  );
+
   const handleCardClick = () => {
     if (selectable) onSelect();
   };
@@ -80,7 +84,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       className={cn(
-        "flex flex-col h-full min-w-0 outline-none transition-[box-shadow,border-color]",
+        "@container/plan flex flex-col gap-0 py-0 h-full min-w-0 outline-none transition-[box-shadow,border-color]",
         "focus-visible:ring-2 focus-visible:ring-ring",
         selectable && "cursor-pointer",
         isSelected
@@ -88,115 +92,143 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           : "border-border/80 shadow-sm",
       )}
     >
-      <CardHeader className="pb-4 space-y-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <CardTitle id={titleId} className="text-xl font-bold">
-              {isCostEfficient ? "Cost-Efficient Plan" : "High-Performance Plan"}
-            </CardTitle>
-          </div>
-          <CardDescription className="text-xs">
-            {isCostEfficient
-              ? "Essential qualifying hardware meeting all baseline requirements."
-              : "Next-tier hardware with growth headroom and lower utilization ceiling."}
-          </CardDescription>
-        </div>
-
-        <div className="sm:w-52 shrink-0" onClick={stopBubbling} onKeyDown={stopBubbling}>
-          <VendorSelect
-            tier={tier}
-            selectedVendor={selectedVendor}
-            availableVendors={availableVendors}
-            onVendorChange={onVendorChange}
-          />
-        </div>
-      </CardHeader>
-
-      <Separator />
-
-      <CardContent className="@container/plan flex-1 pt-5 space-y-6">
-        {!planData.complete && (
-          <div
-            key={selectedVendor}
-            role="alert"
-            className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs space-y-1.5"
-          >
-            <p className="font-semibold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-              This plan is incomplete. Unmet requirements:
-            </p>
-            <ul className="list-disc pl-5 space-y-0.5 text-foreground">
-              {unmetRequirements.map((u) => (
-                <li key={u}>{u}</li>
-              ))}
-            </ul>
-          </div>
+      {/* Wide cards: the topology fills the left column from top to bottom;
+          the header, hardware and cost sit on the right. Narrow cards, and
+          incomplete plans (no topology), use a single column. */}
+      <div
+        className={cn(
+          "grid flex-1 grid-cols-1",
+          planData.complete &&
+            "@6xl/plan:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @6xl/plan:grid-rows-[auto_auto_1fr]",
         )}
-
-        {/* Landscape on wide cards: topology on the left, hardware and cost on
-            the right. Narrow cards, and incomplete plans (no topology), use a
-            single column. */}
-        <div
+      >
+        <CardHeader
           className={cn(
-            "grid grid-cols-1 items-start gap-6",
-            planData.complete &&
-              "@6xl/plan:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+            "flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between",
+            planData.complete && "@6xl/plan:col-start-2 @6xl/plan:row-start-1",
           )}
         >
-          {planData.complete && (
-            <div className="min-w-0">
-              <TopologyGraph planData={planData} />
+          <div className="min-w-0 space-y-3">
+            <div className="space-y-1">
+              <CardTitle id={titleId} className="text-xl font-bold">
+                {isCostEfficient ? "Cost-Efficient Plan" : "High-Performance Plan"}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {isCostEfficient
+                  ? "Essential qualifying hardware meeting all baseline requirements."
+                  : "Next-tier hardware with growth headroom and lower utilization ceiling."}
+              </CardDescription>
+            </div>
+
+            <div className="w-full sm:w-56" onClick={stopBubbling} onKeyDown={stopBubbling}>
+              <VendorSelect
+                tier={tier}
+                selectedVendor={selectedVendor}
+                availableVendors={availableVendors}
+                onVendorChange={onVendorChange}
+              />
+            </div>
+          </div>
+
+          {/* NWP-COMPARE-002 */}
+          <Button
+            type="button"
+            size="lg"
+            className="w-full shrink-0 sm:w-auto"
+            variant={isSelected ? "default" : "outline"}
+            disabled={!selectable}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+          >
+            {isSelected ? "Selected" : "Select this plan"}
+          </Button>
+        </CardHeader>
+
+        {planData.complete && (
+          <>
+            <div
+              className={cn(
+                "relative min-w-0 border-y",
+                "@6xl/plan:col-start-1 @6xl/plan:row-start-1 @6xl/plan:row-span-3",
+                "@6xl/plan:min-h-[600px] @6xl/plan:border-y-0 @6xl/plan:border-r",
+                // The empty and error states fill the column too.
+                "@6xl/plan:[&>[data-testid=topology-empty]]:h-full @6xl/plan:[&>[data-testid=topology-error]]:h-full",
+              )}
+            >
+              <TopologyGraph
+                planData={planData}
+                fill
+                detailsContainer={topologyDetails}
+              />
+            </div>
+
+            <div
+              ref={setTopologyDetails}
+              className="min-w-0 space-y-3 px-4 pt-4 empty:hidden @6xl/plan:col-start-2 @6xl/plan:row-start-3 @6xl/plan:self-start @6xl/plan:pb-4"
+            />
+          </>
+        )}
+
+        <CardContent
+          className={cn(
+            "min-w-0 space-y-4 py-4",
+            planData.complete
+              ? "@6xl/plan:col-start-2 @6xl/plan:row-start-2 @6xl/plan:border-t @6xl/plan:pb-0"
+              : "border-t",
+          )}
+        >
+          {!planData.complete && (
+            <div
+              key={selectedVendor}
+              role="alert"
+              className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs space-y-1.5"
+            >
+              <p className="font-semibold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+                This plan is incomplete. Unmet requirements:
+              </p>
+              <ul className="list-disc pl-5 space-y-0.5 text-foreground">
+                {unmetRequirements.map((u) => (
+                  <li key={u}>{u}</li>
+                ))}
+              </ul>
             </div>
           )}
 
-          <div className="min-w-0 space-y-6">
-            <ComponentTable bom={planData.bom} currency={planData.currency} />
+          <ComponentTable bom={planData.bom} currency={planData.currency} />
 
-            <div className="text-right space-y-0.5">
-              <span className="text-2xl font-extrabold text-primary">
-                {nothingPriced
-                  ? PRICE_UNAVAILABLE
-                  : formatCurrency(planData.totalCost, planData.currency)}
+          <div className="text-right space-y-0.5">
+            <span className="text-2xl font-extrabold text-primary">
+              {nothingPriced
+                ? PRICE_UNAVAILABLE
+                : formatCurrency(planData.totalCost, planData.currency)}
+            </span>
+            <span className="text-xs text-muted-foreground block">
+              {planData.totalIsPartial ? "Partial total" : "Estimated total"}
+            </span>
+            {planData.totalIsPartial && (
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
+                {hasUnpriced
+                  ? "Excludes items with unavailable prices"
+                  : "Excludes the unmet requirements listed above"}
               </span>
-              <span className="text-xs text-muted-foreground block">
-                {planData.totalIsPartial ? "Partial total" : "Estimated total"}
+            )}
+
+            <div className="flex flex-col items-end gap-0.5 pt-2 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                Pricing generated {formatDateTime(planData.generatedAt)}
               </span>
-              {planData.totalIsPartial && (
-                <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
-                  {hasUnpriced
-                    ? "Excludes items with unavailable prices"
-                    : "Excludes the unmet requirements listed above"}
-                </span>
-              )}
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                One-time hardware estimate
+              </span>
             </div>
-
-            {/* NWP-COMPARE-002 */}
-            <Button
-              type="button"
-              className="w-full"
-              variant={isSelected ? "default" : "outline"}
-              disabled={!selectable}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect();
-              }}
-            >
-              {isSelected ? "Selected" : "Select this plan"}
-            </Button>
           </div>
-        </div>
-      </CardContent>
-
-      <CardFooter className="pt-2 pb-4 border-t bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" />
-          Pricing generated {formatDateTime(planData.generatedAt)}
-        </span>
-        <span className="flex items-center gap-1">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          One-time hardware estimate
-        </span>
-      </CardFooter>
+        </CardContent>
+      </div>
     </Card>
   );
 };

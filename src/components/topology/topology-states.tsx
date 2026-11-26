@@ -12,16 +12,22 @@ import { consumeFault } from "./topology-fault";
  */
 
 /** AC2: shown while the layout worker runs. */
-export function TopologySkeleton() {
+export function TopologySkeleton({ fill = false }: { fill?: boolean }) {
   return (
     <div
       role="status"
       aria-busy="true"
       aria-label="Loading topology diagram"
-      className="space-y-4"
+      className={fill ? "@6xl/plan:absolute @6xl/plan:inset-0" : "space-y-4"}
       data-testid="topology-skeleton"
     >
-      <div className="relative h-[640px] w-full overflow-hidden rounded-lg border bg-background p-6">
+      <div
+        className={
+          fill
+            ? "relative h-[640px] w-full overflow-hidden bg-background p-6 @6xl/plan:h-full"
+            : "relative h-[640px] w-full overflow-hidden rounded-lg border bg-background p-6"
+        }
+      >
         {/* A rough tree: one row for the gateway, then switches, then APs and clients. */}
         <div className="flex h-full flex-col items-center justify-around">
           <Skeleton className="h-20 w-40 rounded-xl" />
@@ -36,7 +42,7 @@ export function TopologySkeleton() {
           </div>
         </div>
       </div>
-      <Skeleton className="h-4 w-1/3" />
+      {!fill && <Skeleton className="h-4 w-1/3" />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Inbox } from "lucide-react";
 import type { PlanTier } from "./types";
 
@@ -8,20 +8,18 @@ const Bar: React.FC<{ className: string }> = ({ className }) => (
 );
 
 export const PlanCardSkeleton: React.FC = () => (
-  <Card className="h-full min-w-0 border-border/80 shadow-sm" aria-hidden="true">
-    <CardHeader className="space-y-4">
-      <Bar className="h-6 w-1/2" />
-      <Bar className="h-9 w-full" />
-    </CardHeader>
-    <CardContent className="@container/plan">
-      <div className="grid grid-cols-1 gap-6 @6xl/plan:grid-cols-2">
-        <Bar className="h-56 w-full" />
-        <div className="space-y-4">
-          <Bar className="h-4 w-1/3" />
-          <Bar className="h-32 w-full" />
-        </div>
+  <Card
+    className="@container/plan h-full min-w-0 py-0 border-border/80 shadow-sm"
+    aria-hidden="true"
+  >
+    <div className="grid grid-cols-1 @6xl/plan:grid-cols-2">
+      <Bar className="order-2 h-56 w-full @6xl/plan:order-1 @6xl/plan:h-[600px] @6xl/plan:rounded-none" />
+      <div className="order-1 space-y-4 p-4 @6xl/plan:order-2">
+        <Bar className="h-6 w-1/2" />
+        <Bar className="h-9 w-56 max-w-full" />
+        <Bar className="h-32 w-full" />
       </div>
-    </CardContent>
+    </div>
   </Card>
 );
 

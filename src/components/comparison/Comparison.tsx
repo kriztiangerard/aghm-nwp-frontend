@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
+import { ChevronRight } from "lucide-react";
 import { getPlan } from "./get-plan";
 import { VendorSelect } from "./vendorselect";
 import { PlanCard } from "./plancard";
@@ -117,7 +118,25 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   const hasAnyPlan = PLAN_TIERS.some((t) => vendorsByTier[t].length > 0);
 
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <section className="relative isolate w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
+      {/* CSS-only version of the splash page's sonar grid (see index.css). */}
+      <div aria-hidden="true" className="sonar-backdrop">
+        <span />
+      </div>
+
+      {onBackToSummary && (
+        <button
+          type="button"
+          onClick={onBackToSummary}
+          className="group flex w-fit cursor-pointer items-center gap-2 rounded-full pr-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full border bg-background transition-colors group-hover:bg-muted">
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </span>
+          Back to summary
+        </button>
+      )}
+
       <div className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
           Vendor Plan Selection & Comparison
@@ -154,18 +173,19 @@ const ComparisonView: React.FC<ComparisonProps> = ({
         </div>
       )}
 
-      <div className={`flex ${onBackToSummary ? "justify-between" : "justify-end"}`}>
-        {onBackToSummary && (
-          <Button type="button" variant="outline" onClick={onBackToSummary}>
-            Back to summary
-          </Button>
-        )}
-        {!isLoading && hasAnyPlan && (
-          <Button type="button" size="lg" disabled={!canContinue} onClick={handleContinue}>
+      {!isLoading && hasAnyPlan && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="lg"
+            className="h-12! w-full px-8! text-base! font-semibold sm:w-auto"
+            disabled={!canContinue}
+            onClick={handleContinue}
+          >
             Continue to final report
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 };
@@ -219,7 +239,7 @@ function PlanPanel({
           selectable={lookup.plan.complete}
         />
       ) : (
-        <section aria-label={`${tier} plan`} className="rounded-xl border p-6">
+        <section aria-label={`${tier} plan`} className="rounded-xl border bg-card p-6">
           <h2 className="text-xl font-bold">{tier} Plan</h2>
           <VendorSelect
             tier={tier}

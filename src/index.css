@@ -185,3 +185,60 @@
       0 0 30px 8px color-mix(in oklch, var(--primary) 65%, transparent);
   }
 }
+
+/* Comparison page backdrop: a faint dot grid with a slow sonar ring. Only
+   transform and opacity animate, so no JavaScript redraws it each frame. */
+.sonar-backdrop {
+  --sonar-color: #059669;
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--sonar-color) 22%, transparent) 1px,
+    transparent 1.6px
+  );
+  background-size: 28px 28px;
+  background-position: center;
+}
+
+.dark .sonar-backdrop {
+  --sonar-color: #34d399;
+}
+
+.sonar-backdrop > span {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  width: 140vmax;
+  height: 140vmax;
+  margin: -70vmax 0 0 -70vmax;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    transparent 80%,
+    color-mix(in srgb, var(--sonar-color) 9%, transparent) 95%,
+    transparent
+  );
+  opacity: 0;
+  animation: sonar-sweep 8s linear infinite;
+}
+
+@keyframes sonar-sweep {
+  from {
+    transform: scale(0.05);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sonar-backdrop > span {
+    animation: none;
+  }
+}
