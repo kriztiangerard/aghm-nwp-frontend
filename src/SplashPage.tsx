@@ -32,7 +32,7 @@ function SplashPage() {
   }
 
   return (
-    <main className="relative isolate flex min-h-screen items-center overflow-hidden bg-white px-8 sm:px-12 lg:px-20 dark:bg-black">
+    <main className="relative isolate flex flex-1 items-center overflow-hidden bg-white px-8 sm:px-12 lg:px-20 dark:bg-black">
       {/* The canvas takes one fixed colour, so light mode darkens it with a filter. */}
       <SonarGrid pingArea="center" className="brightness-75 dark:brightness-100" />
       {/* Darkens the grid behind the copy so the text stays readable. */}
