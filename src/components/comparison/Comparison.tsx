@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button"; // NWP-COMPARE-002
+import { BackButton } from "@/components/ui/back-button";
 import { getPlan } from "./get-plan";
 import { VendorSelect } from "./vendorselect";
 import { PlanCard } from "./plancard";
@@ -25,6 +26,7 @@ interface ComparisonProps {
   defaultVendors?: DefaultVendors;
   /** NWP-COMPARE-002: called with the chosen tier/vendor and that plan's data. */
   onContinue?: (choice: PlanChoice, plan: NetworkPlanData) => void;
+  onBackToSummary?: () => void;
 }
 
 const generationKeyOf = (plansData?: VendorPlansPayload): string => {
@@ -44,6 +46,7 @@ export const Comparison: React.FC<ComparisonProps> = ({
   plansData,
   defaultVendors,
   onContinue,
+  onBackToSummary,
 }) => {
   const generationKey = generationKeyOf(plansData);
   return (
@@ -52,6 +55,7 @@ export const Comparison: React.FC<ComparisonProps> = ({
       plansData={plansData}
       defaultVendors={defaultVendors}
       onContinue={onContinue}
+      onBackToSummary={onBackToSummary}
     />
   );
 };
@@ -60,6 +64,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   plansData,
   defaultVendors,
   onContinue,
+  onBackToSummary,
 }) => {
   const vendorsByTier = useMemo(() => {
     const result = {} as Record<PlanTier, VendorName[]>;
@@ -113,14 +118,18 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   const hasAnyPlan = PLAN_TIERS.some((t) => vendorsByTier[t].length > 0);
 
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <section className="fade-in-content w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
+      {onBackToSummary && (
+        <BackButton label="Go back and edit project details" onClick={onBackToSummary} />
+      )}
+
       <div className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Vendor Plan Selection & Comparison
+          Compare and select a plan
         </h1>
         <p className="text-sm text-muted-foreground">
-          Compare the Cost-Efficient and High-Performance plans side by side.
-          Change the vendor on either card independently to see its hardware and costs.
+          Compare the Cost-Efficient and High-Performance plans.
+          Choose a brand to see its hardware and costs.
         </p>
       </div>
 
@@ -129,33 +138,42 @@ const ComparisonView: React.FC<ComparisonProps> = ({
       ) : !hasAnyPlan ? (
         <EmptyState />
       ) : (
-        <>
-          <div
-            role="radiogroup"
-            aria-label="Network plans"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
-          >
-            {PLAN_TIERS.map((tier) => (
-              <PlanPanel
-                key={tier}
-                tier={tier}
-                vendor={shown[tier]}
-                defaultVendor={defaultVendors?.[tier]}
-                vendorsWithPlans={vendorsByTier[tier]}
-                plansData={plansData}
-                isSelected={selectedTier === tier}
-                onSelect={() => setSelectedTier(tier)}
-                onVendorChange={(vendor) => handleVendorChange(tier, vendor)}
-              />
-            ))}
-          </div>
+        <div
+          role="radiogroup"
+          aria-label="Network plans"
+          className="grid grid-cols-1 gap-6"
+        >
+          {PLAN_TIERS.map((tier) => (
+            <PlanPanel
+              key={tier}
+              tier={tier}
+              vendor={shown[tier]}
+              defaultVendor={defaultVendors?.[tier]}
+              vendorsWithPlans={vendorsByTier[tier]}
+              plansData={plansData}
+              isSelected={selectedTier === tier}
+              onSelect={() => setSelectedTier(tier)}
+              onVendorChange={(vendor) => handleVendorChange(tier, vendor)}
+            />
+          ))}
+        </div>
+      )}
 
-          <div className="flex justify-end">
-            <Button type="button" size="lg" disabled={!canContinue} onClick={handleContinue}>
+      {!isLoading && hasAnyPlan && (
+        <div className="flex justify-end">
+          {/* Solid base: the disabled button is half transparent. */}
+          <div className="w-full rounded-md bg-background sm:w-auto">
+            <Button
+              type="button"
+              size="lg"
+              className="h-12! w-full px-8! text-base! font-semibold sm:w-auto"
+              disabled={!canContinue}
+              onClick={handleContinue}
+            >
               Continue to final report
             </Button>
           </div>
-        </>
+        </div>
       )}
     </section>
   );
@@ -191,7 +209,7 @@ function PlanPanel({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {!hasDefault && vendorsWithPlans.length > 0 && (
-        <p role="status" className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+        <p role="status" className="rounded-md border border-amber-500/50 bg-[color-mix(in_oklab,var(--color-amber-500)_10%,var(--background))] p-3 text-sm">
           {defaultVendor == null
             ? "No default vendor could be derived."
             : "The default vendor has no plan available."}{" "}
@@ -210,7 +228,7 @@ function PlanPanel({
           selectable={lookup.plan.complete}
         />
       ) : (
-        <section aria-label={`${tier} plan`} className="rounded-xl border p-6">
+        <section aria-label={`${tier} plan`} className="rounded-xl border bg-card p-6">
           <h2 className="text-xl font-bold">{tier} Plan</h2>
           <VendorSelect
             tier={tier}

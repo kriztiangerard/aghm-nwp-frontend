@@ -29,6 +29,7 @@ Font.register({
   ],
 });
 import type { ReportViewModel, ReportBomLine } from "./report-view-model";
+import { formatCategory, formatMaterialName } from "./format-labels";
 
 const interFontFamilies = ["Inter", "Inter Latin Ext"];
 
@@ -223,7 +224,7 @@ function BomRow({
   return (
     <View style={styles.tableRow} wrap={false}>
       <View style={{ width: "22%" }}>
-        <Text style={styles.tableCell}>{line.category}</Text>
+        <Text style={styles.tableCell}>{formatCategory(line.category)}</Text>
         <Text style={styles.tableCell}>{line.sku}</Text>
       </View>
       <View style={{ width: "28%" }}>
@@ -282,57 +283,34 @@ function InstallationSummary({
 
   return (
     <View>
-      {typeof materials.asOfDate === "string" && (
-        <Text style={styles.note}>Pricing date: {materials.asOfDate}</Text>
-      )}
-      {typeof materials.pricingBasis === "string" && (
-        <Text style={styles.note}>Basis: {materials.pricingBasis}</Text>
-      )}
-
       <View style={{ marginTop: 8 }}>
         <View style={styles.tableHeader} minPresenceAhead={45}>
-          <Text style={[styles.tableCell, { width: "18%" }]}>Material</Text>
-          <Text style={[styles.tableCell, { width: "38%" }]}>Description</Text>
-          <Text style={[styles.tableCell, { width: "8%" }]}>Unit</Text>
+          <Text style={[styles.tableCell, { width: "20%" }]}>Material</Text>
+          <Text style={[styles.tableCell, { width: "50%" }]}>Description</Text>
+          <Text style={[styles.tableCell, { width: "10%" }]}>Unit</Text>
           <Text style={[styles.tableCell, { width: "20%" }]}>Representative price</Text>
-          <Text style={[styles.tableCell, { width: "16%" }]}>Reference</Text>
         </View>
 
         {items.map((item, index) => (
           <View key={index} style={styles.tableRow} wrap={false}>
-            <Text style={[styles.tableCell, { width: "18%" }]}>
-              {String(item.item ?? "Material")}
+            <Text style={[styles.tableCell, { width: "20%" }]}>
+              {formatMaterialName(String(item.item ?? "Material"))}
             </Text>
-            <Text style={[styles.tableCell, { width: "38%" }]}>
+            <Text style={[styles.tableCell, { width: "50%" }]}>
               {String(item.description ?? "—")}
             </Text>
-            <Text style={[styles.tableCell, { width: "8%" }]}>
+            <Text style={[styles.tableCell, { width: "10%" }]}>
               {String(item.unit ?? "—")}
             </Text>
             <Text style={[styles.tableCell, { width: "20%" }]}>
-              {String(item.priceDisplay ?? item.representativeUnitPrice ?? "Not specified")}
+              {String(item.priceDisplay ?? item.representativeUnitPrice ?? "Price on request")}
             </Text>
-            <View style={{ width: "16%" }}>
-              {typeof item.sourceUrl === "string" &&
-              item.sourceUrl.startsWith("https://") ? (
-                <Link src={item.sourceUrl} style={styles.link}>
-                  View source
-                </Link>
-              ) : (
-                <Text style={styles.tableCell}>
-                  {String(item.priceReference ?? "—")}
-                </Text>
-              )}
-            </View>
           </View>
         ))}
       </View>
 
       {items.length === 0 && (
         <Text style={styles.note}>No individual material items provided.</Text>
-      )}
-      {typeof materials.note === "string" && (
-        <Text style={styles.note}>{materials.note}</Text>
       )}
     </View>
   );
@@ -452,7 +430,7 @@ export function ReportPdfDocument({
                     {line.name}
                   </Text>
                   <Text style={[styles.tableCell, { width: "17%" }]}>
-                    {line.category}
+                    {formatCategory(line.category)}
                   </Text>
                   <Text style={[styles.tableCell, { width: "20%" }]}>
                     {line.sku}

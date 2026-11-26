@@ -203,6 +203,8 @@ export async function createTopologySnapshot(
       height: `${height}px`,
       overflow: "hidden",
       background: "#ffffff",
+      // Without this, text would inherit the dark page's near-white colour.
+      color: "var(--foreground)",
       colorScheme: "light",
       pointerEvents: "none",
       zIndex: "-1",

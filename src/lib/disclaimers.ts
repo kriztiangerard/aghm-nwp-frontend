@@ -8,14 +8,20 @@ export const DISCLAIMER_TITLE = "Planning estimate only";
 /** Pricing disclaimer (AC1). The generated-at line is built separately so it is always the exact timestamp. */
 export const PRICING_DISCLAIMER =
   "Prices reflect the product catalog at the time this plan was generated. " +
-  "Confirm current pricing and availability with the distributor before making a purchase.";
+  "You must confirm current pricing and availability with the distributor before making a purchase. " +
+  "Cost estimates are intended solely for planning and budgeting purposes and may vary due to " +
+  "supplier pricing updates, taxes, shipping costs, installation fees, market fluctuations, " +
+  "inflation, promotions, product availability, and other project-specific expenses.";
 
 /** Planning-stage disclaimer (AC2). */
 export const PLANNING_STAGE_DISCLAIMER =
-  "This output is for the planning stage only. It is not a quote or a deployment-ready design, " +
+  "Planning stage only: this output is solely a decision-support and planning tool. " +
+  "It is not a quote or a deployment-ready design, " +
   "and it is not a substitute for a physical site survey or professional installation. " +
-  "Final hardware selection, procurement, and installation remain the responsibility of " +
-  "qualified network professionals and the deploying organization.";
+  "Actual material quantities must be determined through a physical site survey and " +
+  "detailed deployment planning. " +
+  "Final hardware selection, procurement, and installation, including network implementation, " +
+  "remain the responsibility of qualified network professionals and the deploying organization.";
 
 const GENERATED_AT_LABEL = "Plan generated";
 

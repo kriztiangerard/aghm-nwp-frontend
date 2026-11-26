@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 
 import { QUESTIONNAIRE_LIMITS } from '@/lib/questionnaireLimits'
+import { MANAGEMENT_PREFERENCE_LABELS } from '@/schemas/formatters'
 import {
   FieldSet,
   FieldLegend,
@@ -40,17 +41,10 @@ function NetworkSetupPreferences() {
     not_sure: 'Not sure / Recommend',
   }
 
-  const managementPreferenceLabels: Record<string, string> = {
-    dashboard: "A simple app or web dashboard (easier to use, good if you don't have dedicated IT staff)",
-    command_line:
-      'Traditional command-line/technical management (for experienced IT staff)',
-    not_sure: 'Not sure — recommend for me',
-  }
-
   const applicationList = [
     { name: 'preferences.applications.videoConferencing', label: 'Video conferencing' },
     { name: 'preferences.applications.voipCalls', label: 'VoIP calls' },
-    { name: 'preferences.applications.posPayment', label: 'POS/Payment' },
+    { name: 'preferences.applications.posPayment', label: 'POS / Payment' },
     { name: 'preferences.applications.cloudStorage', label: 'Cloud storage' },
     { name: 'preferences.applications.businessSoftware', label: 'Business software' },
     { name: 'preferences.applications.videoStreaming', label: 'Video streaming' },
@@ -242,7 +236,7 @@ function NetworkSetupPreferences() {
                 <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
                   {field.value ? (
                     <span className="flex-1 text-left">
-                      {managementPreferenceLabels[field.value]}
+                      {MANAGEMENT_PREFERENCE_LABELS[field.value]}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">Select an option</span>
@@ -250,13 +244,13 @@ function NetworkSetupPreferences() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="dashboard">
-                    A simple app or web dashboard (easier to use, good if you don't have dedicated IT staff)
+                    {MANAGEMENT_PREFERENCE_LABELS.dashboard}
                   </SelectItem>
                   <SelectItem value="command_line">
-                    Traditional command-line/technical management (for experienced IT staff)
+                    {MANAGEMENT_PREFERENCE_LABELS.command_line}
                   </SelectItem>
                   <SelectItem value="not_sure">
-                    Not sure — recommend for me
+                    {MANAGEMENT_PREFERENCE_LABELS.not_sure}
                   </SelectItem>
                 </SelectContent>
               </Select>

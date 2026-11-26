@@ -26,7 +26,7 @@ export const TopologyPlaceholder: React.FC<TopologyPlaceholderProps> = ({
         className="w-full h-56 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 flex flex-col items-center justify-center p-6 text-center transition-colors"
       >
         <div className="p-3 rounded-full bg-background border shadow-xs mb-3">
-          <Network className="w-6 h-6 text-primary/70" />
+          <Network className="w-6 h-6 text-primary-text/70" />
         </div>
         <p className="text-sm font-medium text-foreground">
           {selectedVendor} — {tier} Topology

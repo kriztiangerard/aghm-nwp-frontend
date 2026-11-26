@@ -7,8 +7,8 @@ const CUSTOM_SELECT_LABELS: Record<string, string> = {
   full_size_rack: 'Full-size rack in a dedicated closet/room',
   wall_cabinet: 'Wall cabinet',
   not_sure: 'Not sure',
-  command_line: 'Traditional command-line/technical management',
-  dashboard: 'A simple app or web dashboard',
+  command_line: 'Traditional CLI or technical management',
+  dashboard: "A simple app or dashboard (easy-to-use, if you don't have IT staff)",
   can_wait: 'We can wait for it to be fixed',
   same_day_matters: 'It should be fixed within the same day',
   every_minute_matters: 'We need the internet available with very little downtime',
@@ -22,6 +22,13 @@ const CUSTOM_SELECT_LABELS: Record<string, string> = {
   '31_plus': '31%+',
   one: '1',
   two_plus: '2+',
+}
+
+/** Option labels for the management preference question, shared by the form and the summary. */
+export const MANAGEMENT_PREFERENCE_LABELS: Record<string, string> = {
+  dashboard: CUSTOM_SELECT_LABELS.dashboard,
+  command_line: CUSTOM_SELECT_LABELS.command_line,
+  not_sure: 'Not sure / Recommend',
 }
 
 /**

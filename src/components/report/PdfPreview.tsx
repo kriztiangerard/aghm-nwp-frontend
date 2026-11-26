@@ -105,7 +105,7 @@ export default function PdfPreview() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#ffffff",
+        background: "var(--background)",
         fontFamily: "Arial, sans-serif",
       }}
     >
@@ -116,7 +116,7 @@ export default function PdfPreview() {
           justifyContent: "space-between",
           gap: 16,
           padding: "12px 20px",
-          background: "#f3f4f6",
+          background: "var(--muted)",
         }}
       >
         <strong>Network Planning Report</strong>
@@ -140,7 +140,7 @@ export default function PdfPreview() {
       </header>
 
       {error ? (
-        <p role="alert" style={{ padding: 20, color: "#991b1b" }}>
+        <p role="alert" style={{ padding: 20, color: "var(--destructive)" }}>
           {error}
         </p>
       ) : url ? (

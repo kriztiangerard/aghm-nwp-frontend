@@ -1,4 +1,4 @@
-import { formatSelectLabel } from '../schemas/formatters'
+import { formatSelectLabel, MANAGEMENT_PREFERENCE_LABELS } from '../schemas/formatters'
 
 export type SummaryItem = {
   id?: string
@@ -46,7 +46,7 @@ const LABEL_OVERRIDES: Record<string, string> = {
   newSites: 'Expected additional sites',
   videoConferencing: 'Video conferencing',
   voipCalls: 'VoIP calls',
-  posPayment: 'POS/payment',
+  posPayment: 'POS / Payment',
   cloudStorage: 'Cloud storage',
   businessSoftware: 'Business software',
   videoStreaming: 'Video streaming',
@@ -95,6 +95,13 @@ const VALUE_OVERRIDES: Record<string, string> = {
   rack_room: 'Rack room',
 }
 
+/** Answers that mean something different depending on the question. Checked before VALUE_OVERRIDES. */
+const FIELD_VALUE_OVERRIDES: Record<string, Record<string, string>> = {
+  equipmentStatus: { none: 'No' },
+  equipmentLocation: { not_sure: 'Not sure / Recommend' },
+  managementPreference: MANAGEMENT_PREFERENCE_LABELS,
+}
+
 export const SECTION_TITLES: Record<string, string> = {
   project: 'Project basics',
   physicalSpace: 'Physical space',
@@ -127,6 +134,16 @@ const UNIT_SUFFIXES: Record<string, string> = {
   cameraCount: ' cameras',
 }
 
+const SINGULAR_UNIT_SUFFIXES: Record<string, string> = {
+  totalUsers: ' person',
+  numberOfFloors: ' floor',
+  roomsPerFloor: ' room',
+  wiredComputers: ' computer',
+  wifiDevices: ' device',
+  phoneCount: ' phone',
+  cameraCount: ' camera',
+}
+
 const formatObjectArrayValue = (value: Record<string, unknown>[]) =>
   value
     .map((item) => {
@@ -139,7 +156,7 @@ const formatObjectArrayValue = (value: Record<string, unknown>[]) =>
       }
 
       const floor = typeof item.floor === 'number' ? `Floor ${item.floor}` : undefined
-      const capacity = typeof item.capacity === 'number' ? `${item.capacity} people` : undefined
+      const capacity = typeof item.capacity === 'number' ? `${item.capacity} ${item.capacity === 1 ? 'person' : 'people'}` : undefined
       const parts = [floor, capacity].filter(Boolean)
       return parts.length > 0 ? parts.join(' · ') : JSON.stringify(item)
     })
@@ -158,7 +175,7 @@ const formatValue = (key: string, value: unknown): string | string[] => {
 
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'number') {
-    const unit = UNIT_SUFFIXES[key] ?? ''
+    const unit = (value === 1 ? SINGULAR_UNIT_SUFFIXES[key] : undefined) ?? UNIT_SUFFIXES[key] ?? ''
     return `${String(value)}${unit}`
   }
   if (Array.isArray(value)) {
@@ -187,6 +204,9 @@ const formatValue = (key: string, value: unknown): string | string[] => {
 
       return siteCountLabels[normalized] ?? normalized
     }
+
+    const fieldLabel = FIELD_VALUE_OVERRIDES[key]?.[normalized]
+    if (fieldLabel) return fieldLabel
 
     if (VALUE_OVERRIDES[normalized]) {
       return VALUE_OVERRIDES[normalized]

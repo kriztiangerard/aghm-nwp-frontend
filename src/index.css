@@ -7,9 +7,18 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/space-grotesk";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark styles apply on screen only: printouts and the topology image used in
+   the PDF stay light. */
+@custom-variant dark {
+    @media not print {
+        &:is(.dark *):not(.topology-snapshot *) {
+            @slot;
+        }
+    }
+}
 
 :root {
+    color-scheme: light;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0.008 326);
     --card: oklch(1 0 0);
@@ -18,6 +27,8 @@
     --popover-foreground: oklch(0.145 0.008 326);
     --primary: oklch(0.496 0.265 301.924);
     --primary-foreground: oklch(0.977 0.014 308.299);
+    /* Purple used as text. */
+    --primary-text: var(--primary);
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
     --muted: oklch(0.96 0.003 325.6);
@@ -44,38 +55,43 @@
     --sidebar-ring: oklch(0.711 0.019 323.02);
 }
 
-.dark {
-    --background: oklch(0.145 0.008 326);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.212 0.019 322.12);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.212 0.019 322.12);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.438 0.218 303.724);
-    --primary-foreground: oklch(0.977 0.014 308.299);
-    --secondary: oklch(0.274 0.006 286.033);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.263 0.024 320.12);
-    --muted-foreground: oklch(0.711 0.019 323.02);
-    --accent: oklch(0.263 0.024 320.12);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.542 0.034 322.5);
-    --chart-1: oklch(0.845 0.143 164.978);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.596 0.145 163.225);
-    --chart-4: oklch(0.508 0.118 165.612);
-    --chart-5: oklch(0.432 0.095 166.913);
-    --sidebar: oklch(0.212 0.019 322.12);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.627 0.265 303.9);
-    --sidebar-primary-foreground: oklch(0.977 0.014 308.299);
-    --sidebar-accent: oklch(0.263 0.024 320.12);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.542 0.034 322.5);
+@media screen {
+    .dark {
+        color-scheme: dark;
+        --background: oklch(0.145 0.008 326);
+        --foreground: oklch(0.985 0 0);
+        --card: oklch(0.212 0.019 322.12);
+        --card-foreground: oklch(0.985 0 0);
+        --popover: oklch(0.212 0.019 322.12);
+        --popover-foreground: oklch(0.985 0 0);
+        --primary: oklch(0.438 0.218 303.724);
+        --primary-foreground: oklch(0.977 0.014 308.299);
+        /* Lighter than --primary, which is too dim to read as text on dark. */
+        --primary-text: oklch(0.72 0.19 303.9);
+        --secondary: oklch(0.274 0.006 286.033);
+        --secondary-foreground: oklch(0.985 0 0);
+        --muted: oklch(0.263 0.024 320.12);
+        --muted-foreground: oklch(0.711 0.019 323.02);
+        --accent: oklch(0.263 0.024 320.12);
+        --accent-foreground: oklch(0.985 0 0);
+        --destructive: oklch(0.704 0.191 22.216);
+        --border: oklch(1 0 0 / 10%);
+        --input: oklch(1 0 0 / 15%);
+        --ring: oklch(0.542 0.034 322.5);
+        --chart-1: oklch(0.845 0.143 164.978);
+        --chart-2: oklch(0.696 0.17 162.48);
+        --chart-3: oklch(0.596 0.145 163.225);
+        --chart-4: oklch(0.508 0.118 165.612);
+        --chart-5: oklch(0.432 0.095 166.913);
+        --sidebar: oklch(0.212 0.019 322.12);
+        --sidebar-foreground: oklch(0.985 0 0);
+        --sidebar-primary: oklch(0.627 0.265 303.9);
+        --sidebar-primary-foreground: oklch(0.977 0.014 308.299);
+        --sidebar-accent: oklch(0.263 0.024 320.12);
+        --sidebar-accent-foreground: oklch(0.985 0 0);
+        --sidebar-border: oklch(1 0 0 / 10%);
+        --sidebar-ring: oklch(0.542 0.034 322.5);
+    }
 }
 
 @theme inline {
@@ -106,6 +122,7 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-primary-text: var(--primary-text);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -142,5 +159,84 @@
   }
   p {
     @apply font-sans text-sm text-muted-foreground;
+  }
+}
+
+/* Glow button (splash "Start" button): resting glow, brighter on hover, pulsing while pressed. */
+.glow-button {
+  box-shadow: 0 6px 18px -6px color-mix(in oklch, var(--primary) 70%, transparent);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.glow-button:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent),
+    0 8px 26px -4px color-mix(in oklch, var(--primary) 80%, transparent);
+}
+
+.glow-button:active:not(:disabled),
+.glow-button[data-glowing="true"] {
+  animation: glow-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklch, var(--primary) 45%, transparent),
+      0 0 18px 4px color-mix(in oklch, var(--primary) 55%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px color-mix(in oklch, var(--primary) 15%, transparent),
+      0 0 38px 12px color-mix(in oklch, var(--primary) 75%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-button:active:not(:disabled),
+  .glow-button[data-glowing="true"] {
+    animation: none;
+    box-shadow:
+      0 0 0 4px color-mix(in oklch, var(--primary) 30%, transparent),
+      0 0 30px 8px color-mix(in oklch, var(--primary) 65%, transparent);
+  }
+}
+
+/* Splash preview entrance: rises while fading in, starting and settling gently. */
+.splash-preview-enter {
+  animation: splash-preview-enter 1s cubic-bezier(0.42, 0, 0.2, 1) 200ms backwards;
+}
+
+@keyframes splash-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-preview-enter {
+    animation: none;
+  }
+}
+
+/* Fade-in once content has loaded. Opacity only, so it causes no layout work.
+   "backwards" leaves no animation styles behind after it finishes. */
+.fade-in,
+.fade-in-content > * {
+  animation: fade-in 450ms ease-out backwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-in-content > * {
+    animation: none;
   }
 }

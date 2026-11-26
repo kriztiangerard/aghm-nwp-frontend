@@ -4,6 +4,12 @@ import {
   getDisclaimerBlock,
   type DisclaimerBlock,
 } from '../../lib/disclaimers'
+import {
+  humanizeField,
+  humanizeLimitation,
+  humanizeValue,
+  tidyLimitations,
+} from './format-assumptions'
 
 export type ReportPlanType = 'CE' | 'HP'
 
@@ -427,33 +433,35 @@ function formatQuestionnaireRequirements(
   // Application and network usage preferences
   const applications = data.preferences.applications
 
+  // One row naming only the applications that were selected. Labels match the
+  // questionnaire's checklist.
   const applicationLabels: Array<[string, boolean]> = [
     ['Video conferencing', applications.videoConferencing],
     ['VoIP calls', applications.voipCalls],
-    ['POS and payment systems', applications.posPayment],
+    ['POS / Payment', applications.posPayment],
     ['Cloud storage', applications.cloudStorage],
     ['Business software', applications.businessSoftware],
     ['Video streaming', applications.videoStreaming],
     ['Security camera viewing', applications.securityCameraViewing],
-    ['Basic browsing and email', applications.basicBrowsingEmail],
-    ['Other application usage', applications.otherEnabled],
+    ['Basic browsing / email', applications.basicBrowsingEmail],
   ]
 
-  requirements.push(
-    ...applicationLabels.map(([label, enabled]) => ({
-      label,
-      value: formatYesNo(enabled),
-      source: 'user' as const,
-    })),
-  )
+  const selectedApplications = applicationLabels
+    .filter(([, enabled]) => enabled)
+    .map(([label]) => label)
 
-  if (applications.otherEnabled && applications.other) {
-    requirements.push({
-      label: 'Other application details',
-      value: applications.other,
-      source: 'user',
-    })
+  if (applications.otherEnabled) {
+    const details = applications.other?.trim()
+    selectedApplications.push(details ? `Other: ${details}` : 'Other')
   }
+
+  requirements.push({
+    label: 'Applications used',
+    value: selectedApplications.length
+      ? selectedApplications.join(', ')
+      : 'None selected',
+    source: 'user',
+  })
 
   // Business growth expectations
   requirements.push({
@@ -595,10 +603,11 @@ function formatEngineeringRequirements(
 function formatLedger(entries: unknown[]): ReportAssumption[] {
   return entries.map((entry) => {
     const item = asRecord(entry)
+    const field = typeof item.field === 'string' ? item.field : ''
 
     return {
-      field: formatValue(item.field),
-      value: formatValue(item.valueUsed),
+      field: field ? humanizeField(field) : formatValue(item.field),
+      value: humanizeValue(field, item.valueUsed),
       reason: formatValue(item.reason),
     }
   })
@@ -724,7 +733,13 @@ export function buildReport(
     flags: formatSelectedPlanFlags([
       ...result.flags,
       ...selectedPlan.flags,
-    ]),    limitations: [...existingEquipmentNotice, ...(selectedPlan.limitations ?? [])],
+    ]),
+    limitations: [
+      ...existingEquipmentNotice,
+      ...tidyLimitations(selectedPlan.limitations ?? []).map((line) =>
+        humanizeLimitation(line, [...selectedPlan.ledger, ...result.ledger]),
+      ),
+    ],
     generatedAt: formatReportDateTime(result.generatedAt),
     generatedAtIso: result.generatedAt,
     disclaimers: getDisclaimerBlock(result.generatedAt)

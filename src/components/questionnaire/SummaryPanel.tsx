@@ -2,6 +2,8 @@ import { FileText } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { getSummarySections, SECTION_TITLES } from '../../lib/summary'
 
 type SummaryPanelProps = {
@@ -16,22 +18,28 @@ function SummaryPanel({ sectionKey }: SummaryPanelProps) {
   return (
     <aside
       aria-labelledby="section-summary-title"
-      className="flex min-w-0 max-h-[calc(100dvh-6rem)] min-h-[18rem] flex-col overflow-hidden border border-border/70 bg-background p-4 shadow-sm lg:sticky lg:top-8"
+      className="min-w-0 lg:sticky lg:top-8"
     >
-      <div className="mb-4 flex items-center gap-3 border-b border-border/70 pb-3">
-        <div className="rounded-md bg-primary/10 p-2 text-primary">
-          <FileText className="h-4 w-4" />
-        </div>
-        <h2 id="section-summary-title" className="text-lg font-semibold text-foreground">
-          Section Summary
-        </h2>
-      </div>
+      {/* Same Card as the questionnaire beside it; matches its height on large screens. */}
+      <Card className="max-h-[calc(100dvh-6rem)] min-h-[18rem] gap-0 lg:h-[calc(100dvh-6rem)] lg:min-h-[36rem]">
+        <CardHeader className="shrink-0 pb-(--card-spacing)">
+          <div className="flex items-center gap-3">
+            <div className="rounded-md bg-primary/10 p-2 text-primary-text">
+              <FileText className="h-4 w-4" />
+            </div>
+            <h2 id="section-summary-title" className="text-lg font-bold tracking-tight">
+              Section Summary
+            </h2>
+          </div>
+        </CardHeader>
 
-      <div
-            className="space-y-5 overflow-y-auto"
-            aria-live="polite"
-            aria-atomic="false"
-          >
+        <Separator />
+
+        <CardContent
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto pt-(--card-spacing)"
+          aria-live="polite"
+          aria-atomic="false"
+        >
         {sections.length === 0 ? (
           <div
               role="status"
@@ -76,7 +84,8 @@ function SummaryPanel({ sectionKey }: SummaryPanelProps) {
             </section>
           ))
         )}
-      </div>
+        </CardContent>
+      </Card>
     </aside>
   )
 }

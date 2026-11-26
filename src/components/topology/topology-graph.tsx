@@ -7,7 +7,8 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Maximize2, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronDown, Maximize2, X } from "lucide-react";
 import {
   Background,
   Controls,
@@ -20,6 +21,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import "./topology-theme.css";
 
+import { Collapsible } from "@base-ui/react/collapsible";
 import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,13 @@ import type { NetworkPlanData } from "@/components/comparison/types";
 
 interface TopologyGraphProps {
   planData: NetworkPlanData;
+  /**
+   * Fill the parent's height on wide plan cards. The parent must be
+   * positioned, define the "plan" container and set its own minimum height.
+   */
+  fill?: boolean;
+  /** With `fill`: where the legend, warnings and floor groups are rendered. */
+  detailsContainer?: HTMLElement | null;
 }
 
 /** Lowest zoom used when the canvas first fits the graph. */
@@ -121,7 +130,9 @@ export function TopologyCanvas({
   onExpand,
   exportViewport,
   onInit,
+  fill = false,
 }: {
+  fill?: boolean;
   graph: PositionedFlowGraph;
   /** Source of the details panel figures. Omit for a non-interactive canvas. */
   planData?: NetworkPlanData;
@@ -221,6 +232,7 @@ export function TopologyCanvas({
         className={cn(
           "topology-canvas relative",
           expanded ? "h-full w-full" : "h-[640px] w-full",
+          fill && "max-sm:h-[400px] @6xl/plan:h-full",
         )}
         onKeyDown={handleKeyDown}
       >
@@ -278,6 +290,44 @@ export function TopologyCanvas({
   );
 }
 
+/**
+ * The legend on a plan card: a purple button in the canvas's top-left corner
+ * that opens the legend over the diagram. Closed by default.
+ */
+function CollapsibleLegend({ graph }: { graph: PositionedFlowGraph }) {
+  return (
+    <Collapsible.Root
+      // The empty parts of this box let pointer events reach the canvas.
+      className="pointer-events-none absolute inset-3 z-10 flex flex-col items-start gap-2"
+    >
+      <Collapsible.Trigger
+        className="group pointer-events-auto flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        // Opening the legend must not also select the plan card.
+        onClick={(event) => event.stopPropagation()}
+      >
+        Legend
+        <ChevronDown
+          aria-hidden="true"
+          className="size-4 transition-transform group-data-[panel-open]:rotate-180"
+        />
+      </Collapsible.Trigger>
+
+      <Collapsible.Panel
+        className="pointer-events-auto min-h-0 w-full max-w-sm cursor-auto overflow-y-auto rounded-lg border bg-card shadow-lg"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <TopologyLegend
+          nodes={graph.nodes}
+          edges={graph.edges}
+          hasFloorZones={graph.zones.length > 0}
+          // One column: the panel is narrow even on wide screens.
+          className="p-3 [&>ul]:grid-cols-1"
+        />
+      </Collapsible.Panel>
+    </Collapsible.Root>
+  );
+}
+
 /** Monotonic id per layout request, so a late reply from an old worker is ignored (AC5). */
 let nextLayoutRequestId = 0;
 
@@ -300,12 +350,13 @@ type LayoutWorkerMessage =
  * a fresh boundary and a fresh graph; nothing from the previous plan (state,
  * a pending worker, an earlier error) can show on the new one.
  */
-export function TopologyGraph({ planData }: TopologyGraphProps) {
+export function TopologyGraph(props: TopologyGraphProps) {
+  const { planData } = props;
   const cacheKey = `${planData.generatedAt}:${planData.vendor}:${planData.tier}`;
 
   return (
     <TopologyErrorBoundary key={cacheKey}>
-      <TopologyGraphContent planData={planData} cacheKey={cacheKey} />
+      <TopologyGraphContent {...props} cacheKey={cacheKey} />
     </TopologyErrorBoundary>
   );
 }
@@ -313,6 +364,8 @@ export function TopologyGraph({ planData }: TopologyGraphProps) {
 function TopologyGraphContent({
   planData,
   cacheKey,
+  fill = false,
+  detailsContainer,
 }: TopologyGraphProps & { cacheKey: string }) {
   const [expanded, setExpanded] = useState(false);
   // Bumped by "Try again" after a layout error; restarts the worker.
@@ -467,15 +520,39 @@ function TopologyGraphContent({
 
   if (!positionedGraph) {
     // AC2: loading skeleton while the layout runs.
-    return <TopologySkeleton />;
+    return <TopologySkeleton fill={fill} />;
   }
 
   // AC3 QA (dev only): ?topologyFault=render throws after the layout arrives.
   if (shouldInjectFault("render")) throw injectedFaultError("render");
 
+  const details = (
+    <>
+      {positionedGraph.warnings.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {positionedGraph.warnings.length} topology warning(s)
+        </p>
+      )}
+
+      {/* The breakdown reads the plan-wide nodes from the adapter; the
+          per-floor split does not change its totals. */}
+      <FloorClosetBreakdown nodes={graph.nodes} />
+    </>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border bg-background">
+    <div
+      className={cn(
+        "fade-in",
+        fill ? "@6xl/plan:absolute @6xl/plan:inset-0" : "space-y-4",
+      )}
+    >
+      <div
+        className={cn(
+          "relative overflow-hidden bg-background",
+          fill ? "@6xl/plan:h-full" : "rounded-lg border",
+        )}
+      >
         <Dialog.Root open={expanded} onOpenChange={setExpanded}>
           <Dialog.Portal>
               <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/60" />
@@ -516,26 +593,17 @@ function TopologyGraphContent({
         <TopologyCanvas
           graph={positionedGraph}
           planData={planData}
+          fill={fill}
           onExpand={() => setExpanded(true)}
           onInit={handleCanvasInit}
         />
+
+        <CollapsibleLegend graph={positionedGraph} />
       </div>
 
-      <TopologyLegend
-        nodes={positionedGraph.nodes}
-        edges={positionedGraph.edges}
-        hasFloorZones={positionedGraph.zones.length > 0}
-      />
-
-      {positionedGraph.warnings.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {positionedGraph.warnings.length} topology warning(s)
-        </p>
-      )}
-
-      {/* The breakdown reads the plan-wide nodes from the adapter; the
-          per-floor split does not change its totals. */}
-      <FloorClosetBreakdown nodes={graph.nodes} />
+      {fill
+        ? detailsContainer && createPortal(details, detailsContainer)
+        : details}
     </div>
   );
 }

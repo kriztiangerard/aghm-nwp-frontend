@@ -59,24 +59,21 @@ describe("InstallationMaterialsSummary", () => {
     expect(screen.getByText("PHP 25.00")).toBeTruthy();
     expect(screen.getByText("PHP 2,500.00")).toBeTruthy();
     expect(screen.getByText("Representative unit price")).toBeTruthy();
-    expect(screen.getByText(PLANNING_STAGE_DISCLAIMER)).toBeTruthy();
   });
 
-  it("AC 11: displays the shared mandatory disclaimer when note is absent", () => {
-    render(<InstallationMaterialsSummary materials={materials} />);
-
-    expect(screen.getByText(PLANNING_STAGE_DISCLAIMER)).toBeTruthy();
-  });
-
-  it("AC 11: retains the supplied note and shared disclaimer", () => {
+  it("AC 11: leaves the disclaimers and site-survey note to the report's top warning", () => {
     render(
       <InstallationMaterialsSummary
         materials={{ ...materials, note: "Illustrative prices only." }}
       />,
     );
 
-    expect(screen.getByText("Illustrative prices only.")).toBeTruthy();
-    expect(screen.getByText(PLANNING_STAGE_DISCLAIMER)).toBeTruthy();
+    expect(screen.queryByText("Illustrative prices only.")).toBeNull();
+    expect(screen.queryByText(PLANNING_STAGE_DISCLAIMER)).toBeNull();
+    expect(screen.queryByText(/pricing date|basis:/i)).toBeNull();
+    expect(PLANNING_STAGE_DISCLAIMER).toMatch(
+      /actual material quantities must be determined through a physical site survey/i,
+    );
   });
 
   it("AC 12: never displays quantities or line totals", () => {
@@ -111,13 +108,12 @@ describe("InstallationMaterialsSummary", () => {
     expect(screen.getByText("25")).toBeTruthy();
   });
 
-  it("AC 11: displays the mandatory disclaimer even when materials are missing", () => {
+  it("AC 11: explains when materials are missing", () => {
     render(<InstallationMaterialsSummary materials={null} />);
 
     expect(
       screen.getByText("No installation materials summary was provided for this plan."),
     ).toBeTruthy();
-    expect(screen.getByText(PLANNING_STAGE_DISCLAIMER)).toBeTruthy();
   });
 
   it("AC 9 and 12: shows price on request for unpriced SFP modules without quantities", () => {
@@ -139,7 +135,7 @@ describe("InstallationMaterialsSummary", () => {
       />,
     );
 
-    expect(screen.getByText("sfp_modules")).toBeTruthy();
+    expect(screen.getByText("SFP modules")).toBeTruthy();
     expect(screen.getByText("Price on request")).toBeTruthy();
 
     const headers = screen.getAllByRole("columnheader").map(
@@ -154,7 +150,7 @@ describe("InstallationMaterialsSummary", () => {
     expect(screen.queryByText("4")).toBeNull();
   });
 
-  it("renders safe source links in a new tab", () => {
+  it("does not show source links", () => {
     render(
       <InstallationMaterialsSummary
         materials={{
@@ -166,9 +162,6 @@ describe("InstallationMaterialsSummary", () => {
       />,
     );
 
-    const link = screen.getByRole("link", { name: "View source" });
-    expect(link.getAttribute("href")).toBe("https://example.com/cat6");
-    expect(link.getAttribute("target")).toBe("_blank");
-    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(screen.queryByRole("link")).toBeNull();
   });
 });

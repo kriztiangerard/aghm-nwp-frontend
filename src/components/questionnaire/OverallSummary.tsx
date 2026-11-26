@@ -14,7 +14,7 @@ function OverallSummary() {
       {/* Header */}
       <header className="space-y-2">
         <div className="flex items-center gap-2">
-          <FileText className="h-6 w-6 text-primary" />
+          <FileText className="h-6 w-6 text-primary-text" />
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             Overall Summary
           </h2>

@@ -118,25 +118,27 @@
   --topo-zone-label-fg: var(--secondary-foreground);
 }
 
-.dark {
-  /* --foreground is near-white in dark mode; the dark ink is the dark page colour. */
-  --topo-ink-dark: var(--background);
+@media screen {
+  .dark {
+    /* --foreground is near-white in dark mode; the dark ink is the dark page colour. */
+    --topo-ink-dark: var(--background);
 
-  /* Dark --primary is already dark enough for light text (8.3:1). */
-  --topo-node-gateway-bg: var(--primary);
-  /* Dark --destructive is lighter, so the firewall mix needs more darkening (8.0:1). */
-  --topo-node-firewall-bg: color-mix(
-    in oklch,
-    color-mix(in oklch, var(--primary) 45%, var(--destructive)) 75%,
-    black
-  );
+    /* Dark --primary is already dark enough for light text (8.3:1). */
+    --topo-node-gateway-bg: var(--primary);
+    /* Dark --destructive is lighter, so the firewall mix needs more darkening (8.0:1). */
+    --topo-node-firewall-bg: color-mix(
+      in oklch,
+      color-mix(in oklch, var(--primary) 45%, var(--destructive)) 75%,
+      black
+    );
 
-  --topo-edge-fiber: var(--sidebar-primary);
-  --topo-edge-poe: var(--chart-2);
-  --topo-edge-wireless: var(--chart-1);
-  --topo-edge-logical: var(--muted-foreground);
+    --topo-edge-fiber: var(--sidebar-primary);
+    --topo-edge-poe: var(--chart-2);
+    --topo-edge-wireless: var(--chart-1);
+    --topo-edge-logical: var(--muted-foreground);
 
-  --topo-badge-integrated: var(--sidebar-primary);
+    --topo-badge-integrated: var(--sidebar-primary);
+  }
 }
 
 /* React Flow chrome follows the shadcn theme in both modes. */

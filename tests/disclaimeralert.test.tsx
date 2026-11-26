@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { DisclaimerAlert } from "../src/components/report/DisclaimerAlert";
+import { DisclaimerAlert } from "../src/components/report/disclaimeralert";
 import {
   DISCLAIMER_TITLE,
   PLANNING_STAGE_DISCLAIMER,
