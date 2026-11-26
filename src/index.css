@@ -186,27 +186,6 @@
   }
 }
 
-/* Page backdrop: a faint, static dot grid behind every page except the
-   splash page, which draws its own sonar background. */
-.grid-backdrop {
-  --grid-dot-color: #6b7280;
-  position: fixed;
-  inset: 0;
-  z-index: -10;
-  pointer-events: none;
-  background-image: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--grid-dot-color) 22%, transparent) 1px,
-    transparent 1.6px
-  );
-  background-size: 28px 28px;
-  background-position: center;
-}
-
-.dark .grid-backdrop {
-  --grid-dot-color: #9ca3af;
-}
-
 /* Fade-in once content has loaded. Opacity only, so it causes no layout work.
    "backwards" leaves no animation styles behind after it finishes. */
 .fade-in,

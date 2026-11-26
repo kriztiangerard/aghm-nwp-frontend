@@ -120,16 +120,16 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   return (
     <section className="fade-in-content w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
       {onBackToSummary && (
-        <BackButton label="Back to summary" onClick={onBackToSummary} />
+        <BackButton label="Go back and edit project details" onClick={onBackToSummary} />
       )}
 
       <div className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Vendor Plan Selection & Comparison
+          Compare and select a plan
         </h1>
         <p className="text-sm text-muted-foreground">
           Compare the Cost-Efficient and High-Performance plans.
-          Change the vendor on either card independently to see its hardware and costs.
+          Choose a brand to see its hardware and costs.
         </p>
       </div>
 

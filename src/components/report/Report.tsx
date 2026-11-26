@@ -270,7 +270,7 @@ const handleCsvDownload = () => {
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-      <BackButton label="Back to comparison" onClick={() => navigate(returnTo)} />
+      <BackButton label="Back to plan comparison" onClick={() => navigate(returnTo)} />
 
       <header>
         <div>

@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import SplashPage from './SplashPage'
 import Questionnaire from './components/questionnaire/Questionnaire'
 import ComparisonRoute from './components/comparison/comparison-route'
@@ -12,14 +12,9 @@ import { Toaster } from "@/components/ui/sonner";
 const ComparisonDev = lazy(() => import("@/components/comparison/ComparisonDev"));
 
 function App() {
-  const { pathname } = useLocation()
-
   return (
     <PlanResultProvider>
       <SelectedPlanProvider>
-        {pathname !== "/" && (
-          <div aria-hidden="true" className="grid-backdrop print:hidden" />
-        )}
         <Suspense fallback={<div>Loading...</div>}>
           <Routes>
             <Route path="/" element={<SplashPage />} />
