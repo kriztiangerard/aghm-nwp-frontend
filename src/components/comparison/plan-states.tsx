@@ -52,7 +52,7 @@ export const EmptyPlanCard: React.FC<{ tier: PlanTier }> = ({ tier }) => (
 export const EmptyState: React.FC = () => (
   <div
     role="status"
-    className="rounded-lg border-2 border-dashed p-10 text-center space-y-2"
+    className="rounded-lg border-2 border-dashed bg-card p-10 text-center space-y-2"
   >
     <Inbox className="w-8 h-8 mx-auto text-muted-foreground" aria-hidden="true" />
     <p className="text-sm font-medium">No plans available</p>

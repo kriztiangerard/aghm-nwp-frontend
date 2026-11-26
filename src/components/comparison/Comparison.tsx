@@ -175,15 +175,18 @@ const ComparisonView: React.FC<ComparisonProps> = ({
 
       {!isLoading && hasAnyPlan && (
         <div className="flex justify-end">
-          <Button
-            type="button"
-            size="lg"
-            className="h-12! w-full px-8! text-base! font-semibold sm:w-auto"
-            disabled={!canContinue}
-            onClick={handleContinue}
-          >
-            Continue to final report
-          </Button>
+          {/* Solid base: the disabled button is half transparent. */}
+          <div className="w-full rounded-md bg-background sm:w-auto">
+            <Button
+              type="button"
+              size="lg"
+              className="h-12! w-full px-8! text-base! font-semibold sm:w-auto"
+              disabled={!canContinue}
+              onClick={handleContinue}
+            >
+              Continue to final report
+            </Button>
+          </div>
         </div>
       )}
     </section>
@@ -220,7 +223,7 @@ function PlanPanel({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {!hasDefault && vendorsWithPlans.length > 0 && (
-        <p role="status" className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+        <p role="status" className="rounded-md border border-amber-500/50 bg-[color-mix(in_oklab,var(--color-amber-500)_10%,var(--background))] p-3 text-sm">
           {defaultVendor == null
             ? "No default vendor could be derived."
             : "The default vendor has no plan available."}{" "}
