@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMaterialName } from "@/lib/report/format-labels";
 
 interface InstallationMaterialsSummaryProps {
   materials: Record<string, unknown> | null;
@@ -13,17 +14,6 @@ interface InstallationMaterialsSummaryProps {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isSafeUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function displayValue(value: unknown): string {
@@ -63,13 +53,12 @@ export default function InstallationMaterialsSummary({
       <Table className="w-full min-w-[850px] table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[18%]">Material</TableHead>
-            <TableHead className="w-[40%]">Description</TableHead>
-            <TableHead className="w-[10%]">Unit</TableHead>
-            <TableHead className="w-[19%] text-right">
+            <TableHead className="w-[20%]">Material</TableHead>
+            <TableHead className="w-[46%]">Description</TableHead>
+            <TableHead className="w-[12%]">Unit</TableHead>
+            <TableHead className="w-[22%] text-right">
               Representative unit price
             </TableHead>
-            <TableHead className="w-[13%] text-right">Reference</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -77,7 +66,7 @@ export default function InstallationMaterialsSummary({
           {items.map((item, index) => (
             <TableRow key={`${String(item.item ?? "material")}-${index}`}>
               <TableCell className="break-words whitespace-normal">
-                {displayValue(item.item)}
+                {formatMaterialName(displayValue(item.item))}
               </TableCell>
               <TableCell className="whitespace-normal">
                 {displayValue(item.description)}
@@ -86,29 +75,13 @@ export default function InstallationMaterialsSummary({
               <TableCell className="whitespace-nowrap text-right">
                 {formatPrice(item, materials?.currency)}
               </TableCell>
-              <TableCell className="whitespace-normal text-right">
-                {isSafeUrl(item.sourceUrl) ? (
-                  <a
-                    href={item.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary underline underline-offset-2"
-                  >
-                    View source
-                  </a>
-                ) : typeof item.priceReference === "string" ? (
-                  item.priceReference
-                ) : (
-                  "—"
-                )}
-              </TableCell>
             </TableRow>
           ))}
 
           {items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={4}
                 className="text-center whitespace-normal text-muted-foreground"
               >
                 {materials

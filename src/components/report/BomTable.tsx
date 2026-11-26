@@ -1,5 +1,6 @@
 import type { ReportViewModel } from "@/lib/report/report-view-model";
 import { Badge } from "@/components/ui/badge";
+import { formatCategory } from "@/lib/report/format-labels";
 import { AlertTriangle } from "lucide-react";
 import {
   Table,
@@ -26,32 +27,6 @@ function formatMoney(value: number | null, currency: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-function formatCategory(category: string): string {
-  const categoryLabels: Record<string, string> = {
-    firewall: "Firewall",
-    gateway: "Gateway",
-    switch: "Switch",
-    router: "Router",
-    access_point: "Access Point",
-    ap: "Access Point",
-    enclosure: "Enclosure",
-  };
-
-  const normalized = category.trim().toLowerCase();
-
-  if (categoryLabels[normalized]) {
-    return categoryLabels[normalized];
-  }
-
-  return normalized
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 const WARN = "text-amber-700 dark:text-amber-400";

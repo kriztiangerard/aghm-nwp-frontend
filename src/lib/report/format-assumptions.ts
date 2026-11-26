@@ -1,6 +1,8 @@
 // Turns the engine's ledger identifiers (for example "wireless.standard") into
 // plain wording. Used for the report page and the PDF through report-view-model.
 
+import { formatCategory } from './format-labels'
+
 const FIELD_LABELS: Record<string, string> = {
   apps: 'Applications',
   'powerProtection.estimatedLoadW': 'Power Protection Estimated Load (W)',
@@ -139,4 +141,29 @@ export function humanizeLimitation(line: string, ledger: unknown[]): string {
   if (!match) return line
 
   return `${LIMITATION_PREFIX}${humanizeField(match[1])}: ${body.slice(match[0].length)}`
+}
+
+// The engine's fixed lines about the planning stage and prices say the same as the
+// "Planning estimate only" warning at the top of the report (lib/disclaimers.ts).
+const COVERED_BY_TOP_WARNING = ['Planning stage only:', 'Prices are planning estimates']
+
+// The warning also carries this sentence, so it is trimmed off the BOM scope line.
+const SITE_SURVEY_CLAUSE =
+  /, and actual quantities must be determined through a physical site survey and detailed deployment planning(?=\.)/
+
+const UNMET_LINE = /^(Requirement not met by .+?: )([a-z_]+)( — )/
+
+/** Limitation lines for display: nothing repeated from the top warning, no category codes. */
+export function tidyLimitations(lines: string[]): string[] {
+  return lines
+    .filter((line) => !COVERED_BY_TOP_WARNING.some((start) => line.startsWith(start)))
+    .map((line) =>
+      line
+        .replace(SITE_SURVEY_CLAUSE, '')
+        .replace(
+          UNMET_LINE,
+          (_, start: string, category: string, dash: string) =>
+            `${start}${formatCategory(category)}${dash}`,
+        ),
+    )
 }

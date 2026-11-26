@@ -135,7 +135,7 @@ describe("InstallationMaterialsSummary", () => {
       />,
     );
 
-    expect(screen.getByText("sfp_modules")).toBeTruthy();
+    expect(screen.getByText("SFP modules")).toBeTruthy();
     expect(screen.getByText("Price on request")).toBeTruthy();
 
     const headers = screen.getAllByRole("columnheader").map(
@@ -150,7 +150,7 @@ describe("InstallationMaterialsSummary", () => {
     expect(screen.queryByText("4")).toBeNull();
   });
 
-  it("renders safe source links in a new tab", () => {
+  it("does not show source links", () => {
     render(
       <InstallationMaterialsSummary
         materials={{
@@ -162,9 +162,6 @@ describe("InstallationMaterialsSummary", () => {
       />,
     );
 
-    const link = screen.getByRole("link", { name: "View source" });
-    expect(link.getAttribute("href")).toBe("https://example.com/cat6");
-    expect(link.getAttribute("target")).toBe("_blank");
-    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(screen.queryByRole("link")).toBeNull();
   });
 });

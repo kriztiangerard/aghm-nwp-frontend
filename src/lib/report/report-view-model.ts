@@ -8,6 +8,7 @@ import {
   humanizeField,
   humanizeLimitation,
   humanizeValue,
+  tidyLimitations,
 } from './format-assumptions'
 
 export type ReportPlanType = 'CE' | 'HP'
@@ -735,7 +736,7 @@ export function buildReport(
     ]),
     limitations: [
       ...existingEquipmentNotice,
-      ...(selectedPlan.limitations ?? []).map((line) =>
+      ...tidyLimitations(selectedPlan.limitations ?? []).map((line) =>
         humanizeLimitation(line, [...selectedPlan.ledger, ...result.ledger]),
       ),
     ],

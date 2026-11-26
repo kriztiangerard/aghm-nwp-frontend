@@ -18,6 +18,7 @@ import { buildBomCsv, downloadCsv } from "@/lib/buildBomCsv";
 import { getDisclaimerBlock } from "@/lib/disclaimers";
 import type { Plan } from "@/types/api-types";
 import { DisclaimerAlert } from "./disclaimeralert";
+import { formatCategory } from "@/lib/report/format-labels";
 
 function toBackendVendor(vendor: string): string {
   if (vendor === "HPE Aruba Instant On") return "Aruba Instant On";
@@ -64,7 +65,7 @@ function HardwareList({ lines }: { lines: ReportBomLine[] }) {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {line.category} · {line.vendor}
+            {formatCategory(line.category)} · {line.vendor}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             SKU: {line.sku}
