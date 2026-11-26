@@ -1,5 +1,12 @@
-// The "here" link in the footer emails this address.
-const CONTACT_EMAIL = 'kriztiangerard.kim.cics@ust.edu.ph'
+// The contact address, Base64-encoded so that simple scrapers don't find it as
+// plain text. This is not encryption: anyone who tries can still decode it.
+// To change it, run btoa('new address') in the browser console and paste the result.
+const ENCODED_CONTACT_EMAIL = 'a3JpenRpYW5nZXJhcmQua2ltLmNpY3NAdXN0LmVkdS5waA=='
+
+// Decoded only on click, so the address is never in the page itself.
+function emailContact() {
+  window.location.href = `mailto:${atob(ENCODED_CONTACT_EMAIL)}`
+}
 
 // Same order as the manuscript's title page (by surname).
 const DEVELOPERS = [
@@ -37,12 +44,13 @@ export function AppFooter() {
         </div>
         <p className="text-xs">
           Any problems? Contact us{' '}
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="rounded-sm font-semibold text-primary-text underline underline-offset-2 hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          <button
+            type="button"
+            onClick={emailContact}
+            className="cursor-pointer rounded-sm font-semibold text-primary-text underline underline-offset-2 hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             here
-          </a>
+          </button>
           .
         </p>
       </div>
