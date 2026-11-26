@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { SonarGrid } from '@/components/ui/sonar-grid'
+import { AnimatedTitle } from '@/components/splash/animated-title'
 
 // Lets the click glow be seen before the page changes.
 const GLOW_BEFORE_NAVIGATE_MS = 450
@@ -38,9 +39,7 @@ function SplashPage() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_70%_at_30%_50%,rgb(0_0_0/0.75),transparent)]"
       />
       <section className="relative w-full max-w-2xl">
-        <h1 className="text-6xl font-bold text-emerald-400 sm:text-7xl">
-          Welcome to PlanNet!
-        </h1>
+        <AnimatedTitle className="text-6xl font-bold text-emerald-400 sm:text-7xl" />
 
         <p className="mt-8 max-w-xl text-base leading-relaxed text-white sm:text-lg">
           PlanNet is an intelligent, automated network infrastructure
