@@ -351,7 +351,7 @@ function Questionnaire() {
           duration={ENGINE_STEP_DURATION_MS}
           loop={false}
         />
-      <main className="min-h-screen bg-muted/30 px-4 py-8 sm:px-8 sm:py-12">
+      <main className="fade-in min-h-screen bg-muted/30 px-4 py-8 sm:px-8 sm:py-12">
         <div className={`mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-8 ${mainGridClass}`}>
           {showSummaryPanel && <SummaryPanel sectionKey={currentSectionKey} />}
 

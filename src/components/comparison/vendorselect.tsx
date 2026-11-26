@@ -45,7 +45,13 @@ export const VendorSelect: React.FC<VendorSelectProps> = ({
           <SelectValue placeholder="Choose a vendor..." />
         </SelectTrigger>
 
-        <SelectContent>
+        {/* Opens above or below the trigger (never over it), whichever side has room,
+            and may grow wider than the trigger so vendor names are not cut off. */}
+        <SelectContent
+          alignItemWithTrigger={false}
+          align="start"
+          className="w-max max-w-(--available-width) min-w-(--anchor-width)"
+        >
           {VENDOR_NAMES.map((vendor) => (
             <SelectItem key={vendor} value={vendor}>
               {vendor}
