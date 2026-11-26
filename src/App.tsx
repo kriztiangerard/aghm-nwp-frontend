@@ -28,7 +28,7 @@ function App() {
             )}
           </Routes>
         </Suspense>
-        <Toaster theme="light" position="top-right" richColors />
+        <Toaster theme="system" position="top-right" richColors />
       </SelectedPlanProvider>
     </PlanResultProvider>
   )

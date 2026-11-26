@@ -24,7 +24,7 @@ function SummaryPanel({ sectionKey }: SummaryPanelProps) {
       <Card className="max-h-[calc(100dvh-6rem)] min-h-[18rem] gap-0 lg:h-[calc(100dvh-6rem)] lg:min-h-[36rem]">
         <CardHeader className="shrink-0 pb-(--card-spacing)">
           <div className="flex items-center gap-3">
-            <div className="rounded-md bg-primary/10 p-2 text-primary">
+            <div className="rounded-md bg-primary/10 p-2 text-primary-text">
               <FileText className="h-4 w-4" />
             </div>
             <h2 id="section-summary-title" className="text-lg font-bold tracking-tight">

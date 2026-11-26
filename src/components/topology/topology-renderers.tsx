@@ -41,7 +41,7 @@ export function TopologyNodeView({
       <Handle type="target" position={Position.Top} />
 
       <Icon
-        className="mb-1 h-5 w-5 shrink-0 text-primary"
+        className="mb-1 h-5 w-5 shrink-0 text-primary-text"
         aria-hidden="true"
       />
 

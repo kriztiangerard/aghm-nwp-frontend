@@ -94,7 +94,7 @@ export default function BomTable({ bom }: BomTableProps) {
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-primary underline underline-offset-2"
+                              className="text-xs text-primary-text underline underline-offset-2"
                             >
                               Reference {index + 1}
                             </a>

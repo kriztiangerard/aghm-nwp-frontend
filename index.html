@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Network Planner</title>
+    <script>
+      // Follow the system light/dark setting, including live changes. This runs
+      // before the app loads, so a dark system does not flash a light page.
+      (function () {
+        if (!window.matchMedia) return;
+        var query = window.matchMedia("(prefers-color-scheme: dark)");
+        function apply() {
+          document.documentElement.classList.toggle("dark", query.matches);
+        }
+        apply();
+        if (query.addEventListener) query.addEventListener("change", apply);
+      })();
+    </script>
     <link href="src/index.css" rel="stylesheet">
   </head>
   <body>

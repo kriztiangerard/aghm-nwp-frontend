@@ -208,7 +208,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           <ComponentTable bom={planData.bom} currency={planData.currency} />
 
           <div className="text-right space-y-0.5">
-            <span className="text-2xl font-extrabold text-primary">
+            <span className="text-2xl font-extrabold text-primary-text">
               {nothingPriced
                 ? PRICE_UNAVAILABLE
                 : formatCurrency(planData.totalCost, planData.currency)}
