@@ -118,7 +118,7 @@ const ComparisonView: React.FC<ComparisonProps> = ({
   const hasAnyPlan = PLAN_TIERS.some((t) => vendorsByTier[t].length > 0);
 
   return (
-    <section className="relative isolate w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <section className="fade-in-content relative isolate w-full max-w-7xl mx-auto px-4 py-8 space-y-6">
       {/* CSS-only version of the splash page's sonar grid (see index.css). */}
       <div aria-hidden="true" className="sonar-backdrop">
         <span />

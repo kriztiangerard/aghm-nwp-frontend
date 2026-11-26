@@ -189,7 +189,7 @@
 /* Comparison page backdrop: a faint dot grid with a slow sonar ring. Only
    transform and opacity animate, so no JavaScript redraws it each frame. */
 .sonar-backdrop {
-  --sonar-color: #059669;
+  --sonar-color: #6b7280;
   position: fixed;
   inset: 0;
   z-index: -10;
@@ -205,7 +205,7 @@
 }
 
 .dark .sonar-backdrop {
-  --sonar-color: #34d399;
+  --sonar-color: #9ca3af;
 }
 
 .sonar-backdrop > span {
@@ -239,6 +239,26 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sonar-backdrop > span {
+    animation: none;
+  }
+}
+
+/* Fade-in once content has loaded. Opacity only, so it causes no layout work.
+   "backwards" leaves no animation styles behind after it finishes. */
+.fade-in,
+.fade-in-content > :not(.sonar-backdrop) {
+  animation: fade-in 450ms ease-out backwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-in-content > :not(.sonar-backdrop) {
     animation: none;
   }
 }

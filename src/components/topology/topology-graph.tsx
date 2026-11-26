@@ -232,7 +232,7 @@ export function TopologyCanvas({
         className={cn(
           "topology-canvas relative",
           expanded ? "h-full w-full" : "h-[640px] w-full",
-          fill && "@6xl/plan:h-full",
+          fill && "max-sm:h-[400px] @6xl/plan:h-full",
         )}
         onKeyDown={handleKeyDown}
       >
@@ -541,7 +541,12 @@ function TopologyGraphContent({
   );
 
   return (
-    <div className={fill ? "@6xl/plan:absolute @6xl/plan:inset-0" : "space-y-4"}>
+    <div
+      className={cn(
+        "fade-in",
+        fill ? "@6xl/plan:absolute @6xl/plan:inset-0" : "space-y-4",
+      )}
+    >
       <div
         className={cn(
           "relative overflow-hidden bg-background",

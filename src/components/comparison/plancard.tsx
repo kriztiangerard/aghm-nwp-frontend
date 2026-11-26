@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"; // NWP-COMPARE-002
 import { formatCurrency, formatDateTime, PRICE_UNAVAILABLE } from "./format";
 import type { NetworkPlanData, PlanTier, VendorName } from "./types";
 import { VendorSelect } from "./vendorselect";
+import { useIsMobile } from "./use-is-mobile";
 import { TopologyGraph } from "@/components/topology/topology-graph";
 import { ComponentTable } from "./componenttable";
 
@@ -56,6 +57,8 @@ export const PlanCard: React.FC<PlanCardProps> = ({
     null,
   );
 
+  const isMobile = useIsMobile();
+
   const handleCardClick = () => {
     if (selectable) onSelect();
   };
@@ -73,6 +76,24 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   // React events bubble through portals, so this also stops clicks inside the
   // dropdown list (rendered outside the card in the DOM) from reaching the card.
   const stopBubbling = (e: React.SyntheticEvent) => e.stopPropagation();
+
+  // NWP-COMPARE-002. Rendered once: in the header, or at the bottom of the card
+  // on phones, so keyboard order always matches what is on screen.
+  const selectButton = (
+    <Button
+      type="button"
+      size="lg"
+      className="w-full shrink-0 sm:w-auto"
+      variant={isSelected ? "default" : "outline"}
+      disabled={!selectable}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+    >
+      {isSelected ? "Selected" : "Select this plan"}
+    </Button>
+  );
 
   return (
     <Card
@@ -130,20 +151,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
             </div>
           </div>
 
-          {/* NWP-COMPARE-002 */}
-          <Button
-            type="button"
-            size="lg"
-            className="w-full shrink-0 sm:w-auto"
-            variant={isSelected ? "default" : "outline"}
-            disabled={!selectable}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          >
-            {isSelected ? "Selected" : "Select this plan"}
-          </Button>
+          {!isMobile && selectButton}
         </CardHeader>
 
         {planData.complete && (
@@ -228,6 +236,8 @@ export const PlanCard: React.FC<PlanCardProps> = ({
             </div>
           </div>
         </CardContent>
+
+        {isMobile && <div className="border-t p-4">{selectButton}</div>}
       </div>
     </Card>
   );
