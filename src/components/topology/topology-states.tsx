@@ -24,7 +24,7 @@ export function TopologySkeleton({ fill = false }: { fill?: boolean }) {
       <div
         className={
           fill
-            ? "relative h-[640px] w-full overflow-hidden bg-background p-6 @6xl/plan:h-full"
+            ? "relative h-[640px] w-full overflow-hidden bg-background p-6 max-sm:h-[400px] @6xl/plan:h-full"
             : "relative h-[640px] w-full overflow-hidden rounded-lg border bg-background p-6"
         }
       >
