@@ -203,6 +203,24 @@
   }
 }
 
+/* Splash preview entrance: rises while fading in, starting and settling gently. */
+.splash-preview-enter {
+  animation: splash-preview-enter 1s cubic-bezier(0.42, 0, 0.2, 1) 200ms backwards;
+}
+
+@keyframes splash-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-preview-enter {
+    animation: none;
+  }
+}
+
 /* Fade-in once content has loaded. Opacity only, so it causes no layout work.
    "backwards" leaves no animation styles behind after it finishes. */
 .fade-in,
