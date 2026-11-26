@@ -18,7 +18,7 @@ export function AppFooter() {
   return (
     <footer className="flex flex-col items-center gap-2 border-t bg-background px-4 py-4 text-center text-xs text-muted-foreground sm:px-8 lg:h-[var(--app-footer-height)] lg:flex-row lg:justify-between lg:py-0 lg:text-left print:hidden">
       <div className="flex flex-col gap-x-3 gap-y-1 lg:flex-row lg:items-center">
-        <p className="text-xs font-semibold text-foreground">Developed by AGHM</p>
+        <p className="text-xs font-semibold text-foreground">Developed by AGHM.</p>
         <ul aria-label="Developers" className="flex flex-wrap justify-center gap-x-3 gap-y-1">
           {DEVELOPERS.map((name) => (
             <li key={name} className="whitespace-nowrap">
