@@ -1,6 +1,9 @@
 import type { ReportViewModel } from "@/lib/report/report-view-model";
 import { Badge } from "@/components/ui/badge";
-import { formatCategory } from "@/lib/report/format-labels";
+import {
+  formatCategory,
+  formatFirewallNote,
+} from "@/lib/report/format-labels";
 import { AlertTriangle } from "lucide-react";
 import {
   Table,
@@ -57,6 +60,8 @@ function isValidReferenceUrl(value: string): boolean {
 }
 
 export default function BomTable({ bom }: BomTableProps) {
+  const firewallNote = formatFirewallNote(bom.lines);
+
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
       <Table className="w-full min-w-[850px] table-fixed">
@@ -152,6 +157,17 @@ export default function BomTable({ bom }: BomTableProps) {
               </TableCell>
             </TableRow>
           ))}
+
+          {firewallNote && (
+            <TableRow>
+              <TableCell
+                colSpan={7}
+                className="whitespace-normal text-muted-foreground"
+              >
+                {firewallNote}
+              </TableCell>
+            </TableRow>
+          )}
 
           {bom.lines.length === 0 && (
             <TableRow>

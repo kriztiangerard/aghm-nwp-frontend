@@ -13,6 +13,8 @@ export interface GroupedItem {
   nodeId: string;
   label: string;
   qty: number;
+  /** True for equipment housed in the closet; false for what the floor's network serves. */
+  inCloset: boolean;
 }
 
 export interface ClosetGroup {
@@ -26,6 +28,9 @@ export interface FloorGroup {
   label: string;
   closets: ClosetGroup[];
 }
+
+// NWP-ENGINE-019 AC6: access points and user devices are on the floor, not inside the closet.
+const CLOSET_ROLES = new Set(["gateway", "switch", "controller"]);
 
 export function groupTopologyPlacements(
   nodes: TopologyFlowNode[],
@@ -75,6 +80,7 @@ export function groupTopologyPlacements(
           nodeId: node.id,
           label: node.data.label,
           qty: placement.qty,
+          inCloset: CLOSET_ROLES.has(node.data.role),
         });
       }
     }

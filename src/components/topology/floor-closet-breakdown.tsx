@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { groupTopologyPlacements } from "./floor-closet-grouping.ts";
+import { groupTopologyPlacements, type GroupedItem } from "./floor-closet-grouping.ts";
 import type { TopologyFlowNode } from "./types";
 
 interface FloorClosetBreakdownProps {
@@ -14,13 +14,55 @@ interface FloorClosetBreakdownProps {
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
 
+function DeviceTable({ title, items }: { title: string; items: GroupedItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <table className="mt-2 w-full table-fixed border-collapse text-xs">
+      <caption className="pb-1 text-left font-semibold text-foreground">
+        {title}
+      </caption>
+      <colgroup>
+        <col />
+        <col className="w-12" />
+      </colgroup>
+      <thead>
+        <tr className="text-muted-foreground">
+          <th scope="col" className="pb-1 text-left font-medium">
+            Device
+          </th>
+          <th scope="col" className="pb-1 text-right font-medium">
+            Qty
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => (
+          <tr key={item.nodeId} className="border-t">
+            <td className="break-words py-1.5 pr-3 align-top text-foreground">
+              {item.label}
+            </td>
+            <td className="whitespace-nowrap py-1.5 text-right align-top font-medium tabular-nums text-foreground">
+              {item.qty}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /**
  * Per-floor, per-closet equipment list under the topology canvas.
  *
  * TOPO-003 follow-up:
- * - Each closet is a two-column table (Device | Qty). The quantity header
- *   appears once per closet instead of "Qty:" on every row, and the number
+ * - Each list is a two-column table (Device | Qty). The quantity header
+ *   appears once per table instead of "Qty:" on every row, and the number
  *   column never wraps, so long model names wrap on the left only.
+ * - Equipment in the closet is listed apart from the access points and user
+ *   devices that the floor's network serves (NWP-ENGINE-019 AC6).
  * - The whole section is collapsible (Base UI Collapsible). Collapsed, the
  *   header still says how many floors and closets it holds.
  */
@@ -92,46 +134,16 @@ export function FloorClosetBreakdown({
               </h5>
 
               {floor.closets.map((closet) => (
-                <table
-                  key={closet.id}
-                  className="mt-2 w-full table-fixed border-collapse text-xs"
-                >
-                  <caption className="sr-only">
-                    {closet.label}
-                  </caption>
-                  <colgroup>
-                    <col />
-                    <col className="w-12" />
-                  </colgroup>
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th
-                        scope="col"
-                        className="pb-1 text-left font-medium"
-                      >
-                        Device
-                      </th>
-                      <th
-                        scope="col"
-                        className="pb-1 text-right font-medium"
-                      >
-                        Qty
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {closet.items.map((item) => (
-                      <tr key={item.nodeId} className="border-t">
-                        <td className="break-words py-1.5 pr-3 align-top text-foreground">
-                          {item.label}
-                        </td>
-                        <td className="whitespace-nowrap py-1.5 text-right align-top font-medium tabular-nums text-foreground">
-                          {item.qty}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div key={closet.id}>
+                  <DeviceTable
+                    title={closet.label}
+                    items={closet.items.filter((item) => item.inCloset)}
+                  />
+                  <DeviceTable
+                    title={`Served by ${floor.label}`}
+                    items={closet.items.filter((item) => !item.inCloset)}
+                  />
+                </div>
               ))}
             </div>
           ))}

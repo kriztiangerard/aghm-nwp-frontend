@@ -65,10 +65,15 @@ interface EngineFlag {
 }
 
 // A requirement only, never a BOM line (NWP-ENGINE-012).
-interface EngineOptics {
+interface EngineOpticModules {
   links: number;
   modules: number;
   formFactor: string | null;
+  runsAt1Gbps?: boolean;
+}
+
+interface EngineOptics extends EngineOpticModules {
+  moduleTypes?: EngineOpticModules[];
 }
 
 interface EnginePlan {
@@ -164,12 +169,20 @@ const formatUnmet = (u: EngineUnmet): string => {
 };
 
 // Optics are not billed, so they surface as an advisory instead of a BOM row.
+const opticModulesText = (entry: EngineOpticModules): string =>
+  `${entry.modules} ${entry.formFactor ? `${entry.formFactor} ` : ""}transceiver module${
+    entry.modules === 1 ? "" : "s"
+  }${entry.formFactor ? "" : " (form factor not determined)"}${
+    entry.runsAt1Gbps ? " (link runs at 1 Gbps)" : ""
+  }`;
+
+// One module type per entry; the engine sends a breakdown only when one type cannot describe the links.
 const opticsAdvisory = (optics?: EngineOptics | null): string[] =>
   optics && optics.modules > 0
     ? [
-        `Fiber links need ${optics.modules} ${optics.formFactor ?? "SFP"} transceiver module${
-          optics.modules === 1 ? "" : "s"
-        }. Not included in the total.`,
+        `Fiber links need ${(optics.moduleTypes ?? [optics])
+          .map(opticModulesText)
+          .join(" and ")}. Not included in the total.`,
       ]
     : [];
 

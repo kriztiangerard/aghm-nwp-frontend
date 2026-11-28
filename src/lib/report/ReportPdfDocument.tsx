@@ -29,7 +29,12 @@ Font.register({
   ],
 });
 import type { ReportViewModel, ReportBomLine } from "./report-view-model";
-import { formatCategory, formatMaterialName } from "./format-labels";
+import {
+  formatCategory,
+  formatFirewallNote,
+  formatMaterialDescription,
+  formatMaterialName,
+} from "./format-labels";
 
 const interFontFamilies = ["Inter", "Inter Latin Ext"];
 
@@ -124,6 +129,10 @@ const styles = StyleSheet.create({
   tableCell: {
     paddingRight: 5,
     fontSize: 8,
+  },
+  warning: {
+    color: "#9A3412",
+    fontWeight: 700,
   },
   note: {
     fontSize: 9,
@@ -230,6 +239,11 @@ function BomRow({
       <View style={{ width: "28%" }}>
         <Text style={styles.tableCell}>{line.name}</Text>
         <Text style={styles.tableCell}>{line.vendor}</Text>
+        {line.status === "SUNSETTING" && (
+          <Text style={[styles.tableCell, styles.warning]}>
+            Sunsetting: confirm availability before purchase
+          </Text>
+        )}
       </View>
       <Text style={[styles.tableCell, { width: "8%" }]}>
         {line.qty}
@@ -297,7 +311,7 @@ function InstallationSummary({
               {formatMaterialName(String(item.item ?? "Material"))}
             </Text>
             <Text style={[styles.tableCell, { width: "50%" }]}>
-              {String(item.description ?? "—")}
+              {formatMaterialDescription(item)}
             </Text>
             <Text style={[styles.tableCell, { width: "10%" }]}>
               {String(item.unit ?? "—")}
@@ -503,6 +517,13 @@ export function ReportPdfDocument({
             currency={report.bom.currency}
           />
         ))}
+        {formatFirewallNote(report.bom.lines) && (
+          <View style={styles.tableRow} wrap={false}>
+            <Text style={styles.tableCell}>
+              {formatFirewallNote(report.bom.lines)}
+            </Text>
+          </View>
+        )}
         <View
           style={{
             flexDirection: "row",
