@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ChevronDown, Cpu, Info } from "lucide-react";
 import { formatDate, formatPrice } from "./format";
+import { formatFirewallNote } from "@/lib/report/format-labels";
 import type { BomLineItem } from "./types";
 
 interface ComponentTableProps {
@@ -36,6 +37,7 @@ export const ComponentTable: React.FC<ComponentTableProps> = ({
     (total, item) => total + item.quantity,
     0,
   );
+  const firewallNote = formatFirewallNote(bom);
 
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
@@ -402,6 +404,17 @@ export const ComponentTable: React.FC<ComponentTableProps> = ({
                   </TableRow>
                 );
               })
+            )}
+
+            {firewallNote && (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="whitespace-normal py-2.5 text-xs text-muted-foreground"
+                >
+                  {firewallNote}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>

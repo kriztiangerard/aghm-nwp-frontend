@@ -10,6 +10,7 @@ import {
   humanizeValue,
   tidyLimitations,
 } from './format-assumptions'
+import { buildPlanningNotes, type PlanningNotes } from './planning-notes'
 
 export type ReportPlanType = 'CE' | 'HP'
 
@@ -72,6 +73,8 @@ export interface ReportViewModel {
   assumptions: ReportAssumption[]
   flags: string[]
   limitations: string[]
+  /** Plain-language notes for the report page. The PDF uses the three precise lists above. */
+  planningNotes: PlanningNotes
   generatedAt: string        // display string, from the shared formatter
   generatedAtIso: string     // raw EngineResult.generatedAt, for the Alert and exports
   disclaimers: DisclaimerBlock
@@ -95,10 +98,18 @@ interface EngineBomLine {
   priceReferences?: string[]
 }
 
+interface PlanWireless {
+  standard: string
+  requestedStandard: string
+  total: number
+  perFloor: number[]
+}
+
 interface EnginePlan {
   vendor: string
   planType: ReportPlanType
   complete: boolean
+  wireless?: PlanWireless
   bom: {
     currency: string
     lines: EngineBomLine[]
@@ -508,9 +519,14 @@ function formatQuestionnaireRequirements(
 function formatEngineeringRequirements(
   requirements: EngineRequirements,
   planType: ReportPlanType,
+  planWireless?: PlanWireless,
 ): ReportRequirement[] {
-  const wireless = requirements.wireless
-  const selectedWireless = wireless?.[planType]
+  // NWP-ENGINE-019 AC3: show the sizing this plan used. It differs from the shared requirement when
+  // the vendor had no Wi-Fi 6E access point.
+  const selectedWireless = planWireless ?? requirements.wireless?.[planType]
+  const fellBack =
+    planWireless !== undefined &&
+    planWireless.standard !== planWireless.requestedStandard
 
   const vlanNames: Record<string, string> = {
     Corporate: 'Corporate network',
@@ -545,6 +561,12 @@ function formatEngineeringRequirements(
   }
 
   const derived: Array<[string, unknown]> = [
+    [
+      'Wi-Fi standard used',
+      fellBack
+        ? `Wi-Fi ${planWireless.standard} (Wi-Fi ${planWireless.requestedStandard} is not available from this vendor)`
+        : null,
+    ],
     ['Recommended access points', selectedWireless?.total],
     ['Access points per floor', selectedWireless?.perFloor],
     ['Required switch ports', requirements.edgePorts],
@@ -703,7 +725,11 @@ export function buildReport(
 
   const requirements = [
     ...formatQuestionnaireRequirements(questionnaireData),
-    ...formatEngineeringRequirements(result.requirements, selection.planType),
+    ...formatEngineeringRequirements(
+      result.requirements,
+      selection.planType,
+      selectedPlan.wireless,
+    ),
   ]
 
 
@@ -713,6 +739,14 @@ export function buildReport(
           'This is a full greenfield replacement estimate. Existing functional cabling may reduce the final deployment cost.',
         ]
       : []
+
+  const ledger = selectLedger(result, selectedPlan)
+  const limitations = [
+    ...existingEquipmentNotice,
+    ...tidyLimitations(selectedPlan.limitations ?? []).map((line) =>
+      humanizeLimitation(line, [...selectedPlan.ledger, ...result.ledger]),
+    ),
+  ]
 
   return {
     project,
@@ -729,17 +763,19 @@ export function buildReport(
     },
     installationMaterials: selectedPlan.installationMaterials ?? null,
     topology: selectedPlan.topology ?? null,
-    assumptions: formatLedger(selectLedger(result, selectedPlan)),
+    assumptions: formatLedger(ledger),
     flags: formatSelectedPlanFlags([
       ...result.flags,
       ...selectedPlan.flags,
     ]),
-    limitations: [
-      ...existingEquipmentNotice,
-      ...tidyLimitations(selectedPlan.limitations ?? []).map((line) =>
-        humanizeLimitation(line, [...selectedPlan.ledger, ...result.ledger]),
-      ),
-    ],
+    limitations,
+    planningNotes: buildPlanningNotes({
+      vendor: selectedPlan.vendor,
+      planType: selectedPlan.planType,
+      ledger,
+      flags: [...result.flags, ...selectedPlan.flags],
+      limitations,
+    }),
     generatedAt: formatReportDateTime(result.generatedAt),
     generatedAtIso: result.generatedAt,
     disclaimers: getDisclaimerBlock(result.generatedAt)

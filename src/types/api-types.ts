@@ -41,6 +41,20 @@ export interface Optics {
   links: number;
   modules: number;
   formFactor: 'SFP' | 'SFP+' | 'SFP28' | 'QSFP+' | 'QSFP28' | null;
+  // Present when the links need more than one module type or run at 1 Gbps.
+  moduleTypes?: {
+    formFactor: Optics['formFactor'];
+    links: number;
+    modules: number;
+    runsAt1Gbps: boolean;
+  }[];
+}
+
+export interface PlanWireless {
+  standard: string;
+  requestedStandard: string;                       // differs from standard after a Wi-Fi 6E fallback
+  total: number;
+  perFloor: number[];
 }
 
 export interface Plan {
@@ -53,6 +67,7 @@ export interface Plan {
   flags: Flag[];
   ledger: LedgerEntry[];
   optics?: Optics | null;                          // null = copper backbone
+  wireless?: PlanWireless;                         // the access point sizing this plan used
   powerProtection?: Record<string, unknown>;
   topology?: Record<string, unknown>;              // tighten to nodes/edges once settled
   configurationPlan?: Record<string, unknown>;

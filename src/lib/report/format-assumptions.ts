@@ -78,7 +78,9 @@ export function humanizeValue(field: string, value: unknown): string {
   // A device model number: never reword it.
   if (field === 'coreSwitch') return String(value)
 
-  if (field === 'wireless.standard') return `Wi-Fi ${String(value)}`
+  if (field === 'wireless.standard' || field === 'wireless.planStandard') {
+    return `Wi-Fi ${String(value)}`
+  }
 
   if (typeof value === 'number') {
     if (field === 'wireless.growth' || field === 'powerProtection.UPS_LOAD_RATIO') {

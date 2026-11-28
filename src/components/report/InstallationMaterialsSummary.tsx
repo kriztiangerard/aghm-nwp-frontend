@@ -6,7 +6,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatMaterialName } from "@/lib/report/format-labels";
+import {
+  formatMaterialDescription,
+  formatMaterialName,
+} from "@/lib/report/format-labels";
 
 interface InstallationMaterialsSummaryProps {
   materials: Record<string, unknown> | null;
@@ -69,7 +72,7 @@ export default function InstallationMaterialsSummary({
                 {formatMaterialName(displayValue(item.item))}
               </TableCell>
               <TableCell className="whitespace-normal">
-                {displayValue(item.description)}
+                {formatMaterialDescription(item)}
               </TableCell>
               <TableCell>{displayValue(item.unit)}</TableCell>
               <TableCell className="whitespace-nowrap text-right">

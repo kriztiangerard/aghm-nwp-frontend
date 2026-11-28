@@ -10,6 +10,7 @@ import InstallationMaterialsSummary from "./InstallationMaterialsSummary";
 import BomTable from "./BomTable";
 import BomStatusLegend from "./BomStatusLegend";
 import RequirementsPanel from "./RequirementsPanel";
+import PlanningNotes from "./PlanningNotes";
 import {
   buildReport,
   type ReportBomLine,
@@ -374,52 +375,7 @@ const handleCsvDownload = () => {
         <InstallationMaterialsSummary materials={report.installationMaterials} />
       </section>
 
-      {(report.assumptions.length > 0 ||
-        report.flags.length > 0 ||
-        report.limitations.length > 0) && (
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            Assumptions and planning notes
-          </h2>
-
-          {report.assumptions.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Assumptions</h3>
-              {report.assumptions.map((item, index) => (
-                <div
-                  key={`${item.field}-${index}`}
-                  className="rounded-lg border bg-card p-3 text-sm"
-                >
-                  <p className="font-medium">{item.field}: {item.value}</p>
-                  <p className="mt-1 text-muted-foreground">{item.reason}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {report.flags.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Engine flags</h3>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                {report.flags.map((flag, index) => (
-                  <li key={`${flag}-${index}`}>{flag}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {report.limitations.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Limitations</h3>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                {report.limitations.map((limitation, index) => (
-                  <li key={index}>{limitation}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
+      <PlanningNotes notes={report.planningNotes} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap gap-3 print:hidden">
